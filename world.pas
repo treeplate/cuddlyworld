@@ -5,7 +5,8 @@ unit world;
 interface
 
 uses
-   storable, lists, physics, player, grammarian;
+   storable, lists, physics, player, grammarian
+   {$IFDEF DEBUG}, textstream {$ENDIF};
 
 type
    TWorld = class(TStorable) // @RegisterStorableClass
@@ -36,7 +37,7 @@ implementation
 
 uses
    sysutils, thingseeker, properties, typinfo, thingdim // typinfo and thingdim are used in parser.inc
-   {$IFDEF DEBUG}, broadcast, textstream, typedump, arrayutils {$ENDIF}; // typedump and arrayutils are used in parser.inc
+   {$IFDEF DEBUG}, broadcast, typedump, arrayutils {$ENDIF}; // typedump and arrayutils are used in parser.inc
 
 var
    FailedCommandLog: Text;
@@ -286,12 +287,38 @@ procedure TWorld.ExecuteAction(const Action: TAction; Player: TPlayer);
          DoDebugConnect(cdReverse[Direction], Target as TLocation, Location, Options, False);
       end;
    end;
-
+   
    procedure DoDebugMake(Data: UTF8String);
+
+      function CreationHandler(AClass: TClass; Stream: TTextStream): TObject;
+      begin
+         Result := MakeAtomFromStream(AClass, Stream);
+         if (Result is TLocation) then
+         begin
+            AddLocation(TLocation(Result));
+            Player.SendMessage('Hocus Pocus! ' + Capitalise(TLocation(Result).GetDefiniteName(Player)) + ' now exists.');
+         end
+         else
+         if (Result is TThing) then
+         begin
+            Player.SendMessage('Poof! ' + Capitalise(TThing(Result).GetIndefiniteName(Player)) + ' manifests.');
+         end
+         else
+         if (Result is TAtom) then
+         begin
+            Assert(False); // Should not be possible
+            Fail('You create ' + TAtom(Result).GetIndefiniteName(Player) + ', but then, for lack of anything better to do, ' + TAtom(Result).GetLongDefiniteName(Player) + ' vanishes. You hear a horrifying sound that speaks to unexpected damage to the time-space continuum.');
+         end
+         else
+         begin
+            Assert(False); // Should not be possible
+            Fail('You create something undescribable. You hear a horrifying sound that speaks to unexpected damage to the time-space continuum.');
+         end;
+      end;
+   
    var
       Creation: TAtom;
       Stream: TTextStream;
-      Message: UTF8String;
       LocationA: TLocation;
       LocationB: TAtom;
       Direction: TCardinalDirection;
@@ -301,7 +328,7 @@ procedure TWorld.ExecuteAction(const Action: TAction; Player: TPlayer);
       Assert(Length(Data) >= 2);
       Assert(Data[1] = '"');
       Assert(Data[Length(Data)] = '"');
-      Stream := TTextStreamFromString.Create(Copy(Data, 2, Length(Data) - 2), @GetRegisteredAtomClass, @MakeAtomFromStream);
+      Stream := TTextStreamFromString.Create(Copy(Data, 2, Length(Data) - 2), @GetRegisteredAtomClass, @CreationHandler);
       try
          repeat
             if (Stream.PeekIdentifier() = 'new') then
@@ -313,12 +340,6 @@ procedure TWorld.ExecuteAction(const Action: TAction; Player: TPlayer);
                      Fail('The incantation fizzles as you hear a voice whisper "' + Error.Message + '".');
                end;
                Assert(Assigned(Creation));
-               if (Creation is TLocation) then
-               begin
-                  AddLocation(TLocation(Creation));
-                  Player.SendMessage('Hocus Pocus! ' + Capitalise(Creation.GetDefiniteName(Player)) + ' now exists.');
-               end
-               else
                if (Creation is TThing) then
                begin
                   Player.Add(TThing(Creation), tpCarried);
@@ -326,14 +347,6 @@ procedure TWorld.ExecuteAction(const Action: TAction; Player: TPlayer);
                               [C(M(@Player.GetDefiniteName)), SP,
                                MP(Player, M('manifests'), M('manifest')), SP,
                                M(@Creation.GetIndefiniteName), M('.')]);
-                  Player.SendMessage('Poof! ' + TThing(Creation).GetPresenceStatement(Player, psThereIsAThingHere));
-               end
-               else
-               begin
-                  Assert(False); // Should not be possible
-                  Message := 'You create ' + Creation.GetIndefiniteName(Player) + ', but then, for lack of anything better to do, ' + Creation.GetLongDefiniteName(Player) + ' vanishes.';
-                  Creation.Free(); // XXX this will leave an invalid pointer in the named object table if the creation was named
-                  Fail(Message);
                end;
                if (Stream.PeekToken() <> tkEndOfFile) then
                   Stream.ExpectPunctuation(';');

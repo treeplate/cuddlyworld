@@ -37,17 +37,17 @@ procedure TestMechanics4();
 
    begin
       RunCommand('look', ['Land', 'The land is a land.']);
-      RunCommand('debug make ''new TDoorWay { name: "doorway"; pattern: "grand? doorway/doorways"; description: "The doorway is grand."; frontDirection: cdSouth; door: new TDoor { name: "door"; pattern: "(open:1 closed:2 wooden)* door/doors"; frontSide: new TDoorSide { name: "side"; pattern: "(varnished wooden front:1)* side/sides"; description: "The wooden door is varnished."; }; backSide: new TDoorSide { name: "side"; pattern: "(((scratched wooden back:1)* side/sides) scratch/scratches)@"; description: "The door has a big scratch, as if made by a wolf."; }; }; }''', ['Poof! There is a doorway here.']);
+      RunCommand('debug make ''new TDoorWay { name: "doorway"; pattern: "grand? doorway/doorways"; description: "The doorway is grand."; frontDirection: cdSouth; door: new TDoor { name: "door"; pattern: "(open:1 closed:2 wooden)* door/doors"; frontSide: new TDoorSide { name: "side"; pattern: "(varnished wooden front:1)* side/sides"; description: "The wooden door is varnished."; }; backSide: new TDoorSide { name: "side"; pattern: "(((scratched wooden back:1)* side/sides) scratch/scratches)@"; description: "The door has a big scratch, as if made by a wolf."; }; }; }''', ['Poof! A side manifests.', 'Poof! A side manifests.', 'Poof! A door manifests.', 'Poof! A doorway manifests.']);
       RunCommand('debug things', ['Things:', ' - ground: the ground', ' - you: you', ' - bag of holding: the embroidered bag of holding labeled Tester', ' - rim: the rim of the bag of holding', ' - doorway: the grand doorway', ' - door: the closed wooden door', ' - side: the varnished wooden side of the door', ' - side: the scratched wooden side of the door']);
       RunCommand('inventory', ['You are carrying:', '  A bag of holding.', '  A doorway.']);
       RunCommand('debug make ''new TSign { name: "wooden sign"; pattern: "(burnt wooden)* (sign/signs writing/writings)@"; description: "The sign has some text burnt into it."; writing: "HELLO"; }''', ['The incantation fizzles as you hear a voice whisper "Required property "mass" not found".']);
-      RunCommand('debug make ''new TSign { name: "wooden sign"; pattern: "(burnt wooden)* (sign/signs writing/writings)@"; description: "The sign has some text burnt into it."; writing: "HELLO"; mass: tmLight; size: tsSmall; }''', ['Poof! There is a wooden sign here.']);
+      RunCommand('debug make ''new TSign { name: "wooden sign"; pattern: "(burnt wooden)* (sign/signs writing/writings)@"; description: "The sign has some text burnt into it."; writing: "HELLO"; mass: tmLight; size: tsSmall; }''', ['Poof! A wooden sign manifests.']);
       RunCommand('put sign on ground', ['Placed.']);
       RunCommand('read sign', ['On the wooden sign is written "HELLO".']);
       RunCommand('look', ['Land', 'The land is a land.', 'There is a wooden sign here.']);
       RunCommand('debug make ''new THole{description:"HOLE";size:tsSmall;pileClass: TSpade;}''', ['The incantation fizzles as you hear a voice whisper "Class specified for "pileClass" is not acceptable, must be a TPile".']);
-      RunCommand('debug make ''new THole{description:"HOLE";size:tsSmall;pileClass: TPile;}''', ['Poof! There is a hole here.']);
-      RunCommand('debug make ''new TGroundLocation { name: "Undisclosed location"; definiteName: "the undisclosed location"; indefiniteName: "an undisclosed location"; description: "This is the place where it happens, where secrets are discussed and plans made."; ground: new TEarthGround { name: "ground"; pattern: "(ground/grounds earth)@"; description: "The ground is a flat surface of earth."; }; }''', ['Hocus Pocus! The undisclosed location now exists.']);
+      RunCommand('debug make ''new THole{description:"HOLE";size:tsSmall;pileClass: TPile;}''', ['Poof! A hole manifests.']);
+      RunCommand('debug make ''new TGroundLocation { name: "Undisclosed location"; definiteName: "the undisclosed location"; indefiniteName: "an undisclosed location"; description: "This is the place where it happens, where secrets are discussed and plans made."; ground: new TEarthGround { name: "ground"; pattern: "(ground/grounds earth)@"; description: "The ground is a flat surface of earth."; }; }''', ['Poof! A ground manifests.', 'Hocus Pocus! The undisclosed location now exists.']);
       RunCommand('debug connect north to undisclosed location', ['Abracadabra! Going north from the Land now leads to the Undisclosed location.']);
       RunCommand('look', ['Land', 'The land is a land. To the north is the undisclosed location.', 'There is a wooden sign here.']);
       RunCommand('n', ['Undisclosed location', 'This is the place where it happens, where secrets are discussed and plans made.']);
@@ -57,7 +57,7 @@ procedure TestMechanics4();
       RunCommand('find sign', ['I can''t find anything like a "sign" here.']);
       RunCommand('debug teleport land', ['Land', 'The land is a land. To the north is the undisclosed location.', 'There is a wooden sign here.']);
       RunCommand('debug teleport sign', ['On the wooden sign (at the land)', 'The sign has some text burnt into it.', 'The wooden sign is on the ground. To the north is the undisclosed location.']);
-      RunCommand('debug make ''new TScenery { name: "test"; pattern: "test/tests"; description: "The test is a test."; }''', ['Poof! There is a test here.']);
+      RunCommand('debug make ''new TScenery { name: "test"; pattern: "test/tests"; description: "The test is a test."; }''', ['Poof! A test manifests.']);
       RunCommand('debug describe class TScenery', ['Properties available on TScenery:', ' - name: string', ' - pattern: pattern', ' - description: string', ' - underDescription: string', ' - findDescription: string', ' - cannotMoveExcuse: string', ' - opened: boolean', ' - mass: enum:TThingMass', ' - size: enum:TThingSize', ' - child: child*']);
       RunCommand('debug describe enum TThingMass', ['Enum values available on TThingMass:', ' - tmLight', ' - tmHeavy', ' - tmPonderous', ' - tmLudicrous']);
    end;
@@ -148,9 +148,18 @@ procedure TestMechanics4();
          'connect room2, cdNorth, doorway, loAutoDescribe loPermissibleNavigationTarget loNotVisibleFromBehind loThreshold, bidirectional;' +
          '''',
          [
+            'Poof! A sun manifests.',
+            'Poof! A sky manifests.',
             'Hocus Pocus! The sky now exists.',
+            'Poof! A side manifests.',
+            'Poof! A side manifests.',
+            'Poof! A door manifests.',
+            'Poof! A doorway manifests.',
+            'Poof! A floor manifests.',
             'Hocus Pocus! The doorway now exists.',
+            'Poof! A ground manifests.',
             'Hocus Pocus! A room now exists.',
+            'Poof! A ground manifests.',
             'Hocus Pocus! A back room now exists.',
             'Abracadabra! Going south from the Room now leads to the doorway.',
             'Abracadabra! Going north from the doorway now leads to the Room.',
