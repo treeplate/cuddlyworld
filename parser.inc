@@ -1795,11 +1795,6 @@
                      Action.DebugDescribeEnumTypeInfo := nil;
                      if (not CanEnd()) then
                      begin
-                        if (OriginalTokens[CurrentToken] = 'Boolean') then
-                        begin
-                           Action.DebugDescribeEnumTypeInfo := TypeInfo(Boolean);
-                        end
-                        else
                         if (OriginalTokens[CurrentToken] = 'TCardinalDirection') then
                         begin
                            Action.DebugDescribeEnumTypeInfo := TypeInfo(TCardinalDirection);
@@ -1838,7 +1833,7 @@
                          end;
                      end;
                      if (not Result) then
-                        Fail('Syntax: "debug describe enum <enum>", where <enum> is one of "Boolean", "TCardinalDirection", "TThingMass", "TThingSize", "TThingPosition", "TLandmarkOption".');
+                        Fail('Syntax: "debug describe enum <enum>", where <enum> is one of "TCardinalDirection", "TThingMass", "TThingSize", "TThingPosition", "TLandmarkOption".');
                   end
                   else
                   begin

@@ -235,8 +235,8 @@ type
       function CanReach(Subject: TAtom; Perspective: TAvatar; var Message: TMessage): Boolean; virtual; // whether we can manipulate Subject
       function HasAbilityToTravelTo(Destination: TAtom; RequiredAbilities: TNavigationAbilities; Perspective: TAvatar; var Message: TMessage): Boolean; virtual; // [travel]
       function CanPut(Thing: TThing; ThingPosition: TThingPosition; Care: TPlacementStyle; Perspective: TAvatar; var Message: TMessage): Boolean; override;
-      function CanMove(Perspective: TAvatar; var Message: TMessage): Boolean; virtual;
-      function CanTake(Perspective: TAvatar; var Message: TMessage): Boolean; virtual;
+      function CanMove(Perspective: TAvatar; var Message: TMessage): Boolean; virtual; // Perspective can be nil for internal checks
+      function CanTake(Perspective: TAvatar; var Message: TMessage): Boolean; virtual; // Perspective can be nil for internal checks
       function CanShake(Perspective: TAvatar; var Message: TMessage): Boolean; virtual;
       function GetIntrinsicMass(): TThingMass; virtual; abstract;
       function GetIntrinsicSize(): TThingSize; virtual; abstract;
@@ -2230,6 +2230,8 @@ procedure TThing.Moved(OldParent: TAtom; Care: TPlacementStyle; Perspective: TAv
 begin
    if (Self <> Perspective) then
    begin
+      // TODO: we should have special versions of this for picking up, dropping, placing, etc.
+      // (currently ThingPositionToDirectionString does something weird for tpCarried, where it assumes the "it" pronoun for us)
       DoBroadcast([OldParent, FParent], Perspective, [
          C(M(@Perspective.GetDefiniteName)), MP(Perspective, M(' moves '), M(' move ')), M(@GetDefiniteName), SP(),
          M(ThingPositionToDirectionString(Position)), SP(), M(@FParent.GetDefiniteName), M('.')

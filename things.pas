@@ -148,7 +148,6 @@ type
    end;
 
    // The ground, mainly
-   // consider making this inherit from TFeature
    TSurface = class(TDescribedPhysicalThing) // @RegisterStorableClass
     protected
       class function CreateFromProperties(Properties: TTextStreamProperties): TSurface; override;
@@ -165,9 +164,12 @@ type
     protected
       FHole: THole;
       {$IFOPT C+} procedure AssertChildPositionOk(Thing: TThing; APosition: TThingPosition); override; {$ENDIF}
+      class function CreateFromProperties(Properties: TTextStreamProperties): TEarthGround; override;
     public
+      constructor Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String; AMass: TThingMass = tmLudicrous; ASize: TThingSize = tsLudicrous; AHole: THole = nil);
       constructor Read(Stream: TReadStream); override;
       procedure Write(Stream: TWriteStream); override;
+      class procedure DescribeProperties(Describer: TPropertyDescriber); override;
       function GetDescriptionRemoteDetailed(Perspective: TAvatar; Direction: TCardinalDirection; LeadingPhrase: UTF8String; Options: TLeadingPhraseOptions): UTF8String; override;
       function GetLookIn(Perspective: TAvatar): UTF8String; override;
       function GetLookUnder(Perspective: TAvatar): UTF8String; override;
@@ -1133,6 +1135,16 @@ begin
 end;
 
 
+constructor TEarthGround.Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String; AMass: TThingMass = tmLudicrous; ASize: TThingSize = tsLudicrous; AHole: THole = nil);
+begin
+   inherited Create(Name, Pattern, Description, AMass, ASize);
+   if (Assigned(AHole)) then
+   begin
+      FHole := AHole;
+      Add(AHole, tpSurfaceOpening);
+   end;
+end;
+
 constructor TEarthGround.Read(Stream: TReadStream);
 begin
    inherited;
@@ -1143,6 +1155,43 @@ procedure TEarthGround.Write(Stream: TWriteStream);
 begin
    inherited;
    Stream.WriteReference(FHole);
+end;
+
+class function TEarthGround.CreateFromProperties(Properties: TTextStreamProperties): TEarthGround;
+var
+   Name: UTF8String;
+   Pattern: UTF8String;
+   Description: UTF8String;
+   Hole: TThing = nil;
+   MassValue: TThingMass = tmLudicrous;
+   SizeValue: TThingSize = tsLudicrous;
+   StreamedChildren: TStreamedChildren;
+begin
+   while (not Properties.Done) do
+   begin
+      if (Properties.HandleUniqueStringProperty(pnName, Name) and
+          Properties.HandleUniqueStringProperty(pnPattern, Pattern) and
+          Properties.HandleUniqueStringProperty(pnDescription, Description) and
+          TThing.HandleUniqueThingProperty(Properties, pnHole, Hole, THole) and
+          Properties.specialize HandleUniqueEnumProperty<TThingMass>(pnMass, MassValue) and
+          Properties.specialize HandleUniqueEnumProperty<TThingSize>(pnSize, SizeValue) and
+          HandleChildProperties(Properties, StreamedChildren)) then
+         Properties.FailUnknownProperty();
+   end;
+   Properties.EnsureSeen([pnName, pnPattern, pnDescription]);
+   Result := Create(Name, Pattern, Description, MassValue, SizeValue, Hole as THole);
+   StreamedChildren.Apply(Result);
+end;
+
+class procedure TEarthGround.DescribeProperties(Describer: TPropertyDescriber);
+begin
+   Describer.AddProperty(pnName, ptString);
+   Describer.AddProperty(pnPattern, ptPattern);
+   Describer.AddProperty(pnDescription, ptString);
+   Describer.AddProperty(pnHole, ptHole);
+   Describer.AddProperty(pnMass, ptMass);
+   Describer.AddProperty(pnSize, ptSize);
+   Describer.AddProperty(pnChild, ptChild);
 end;
 
 {$IFOPT C+}

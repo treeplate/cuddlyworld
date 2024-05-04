@@ -27,6 +27,6 @@ popd > /dev/null
 echo
 
 pushd . > /dev/null
-TESTCMD="echo ready!" CUDDLYWORLDPORT="10001" MAIN="cuddlyworld" MODE=$MODE DEFINES="$DEFINES" lib/compile.sh || exit 1
+CUDDLYWORLDPORT="10001" MAIN="cuddlyworld" MODE=$MODE DEFINES="$DEFINES" lib/compile.sh || exit 1
 popd > /dev/null
 echo

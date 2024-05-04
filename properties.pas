@@ -20,6 +20,7 @@ const // keywords used as property names in "debug make" commands
    pnFrontDirection = 'frontDirection';
    pnFrontSide = 'frontSide';
    pnGround = 'ground';
+   pnHole = 'hole';
    pnIndefiniteName = 'indefiniteName';
    pnIngredients = 'ingredients';
    pnLandmark = 'landmark';
@@ -47,6 +48,7 @@ const // keywords used as property types in "debug describe TFoo" commands
    ptDoorSide = 'atom:TDoorSide';
    ptLocation = 'atom:TLocation';
    ptThing = 'atom:TThing';
+   ptHole = 'atom:THole';
 
    // special syntax
    ptIngredients = 'ingredients';
