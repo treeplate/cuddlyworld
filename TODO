@@ -1,5 +1,4 @@
 CODE HEALTH
- + There's a bug with picking up ponderous things
  + Replace all the places that generate strings by concatentating strings with calls to a function similar to
    TMessage's constructor, with '_ _ of _'. Or see TBroadcast and see how it does it.
  + Rename "Find*" methods with "Enumerate*" methods where applicable
@@ -119,7 +118,6 @@ WORLD
  + "harvest forest": I don't understand how to "harvest".
  + "chop down forest": I don't understand how to "chop".
  + "repair", "unbreak system": I don't understand how to "unbreak".
-
  + Descriptions that walk up the chain of things being on things
    should give more context (e.g. "The rim is part of the bag." to
    avoid this mess:
@@ -171,6 +169,7 @@ PLAYER INTERACTION
  + "push all to Hixie" (where Hixie is in the room) pushes Hixie to Hixie (and starts asserting all over the place).
  + If you're in a doorway, you don't get notified of people going through the door. (Nor do they get told about you.)
  + "climb stairs" doesn't check if you're too big to fit through the opening the way that "up" and "down" do check.
+ + "take <other player>" tells the other player "Hixie moved you so that _it_ is carried by Hixie" instead of using the right pronoun (emphasis added).
 
 THINGS
  + floors at threshold locations should be visible to all
@@ -189,6 +188,7 @@ THINGS
  + make orbs smaller but with no carrying capability
  + you can move something onto something else even if that other thing is on something that couldn't handle the new total mass or volume. should we handle this via HandleAdd()? (take macguffin; have someone else walk onto it); maybe handle this by chaining CanPut() and friends up the parent chain, but we should have objects HandleAdd unexpected stuff anyway, for when you fumble it (since that doesn't check to see if you can put it there, and currently asserts -- e.g. after climbing on someone, then fumble something)
  + fumbling doesn't check if there's room on the target, then asserts when there isn't. make the fumble be a tumble!
+ + fumble tells other players both about the fumble and then about the move to the ground.
  + you can probably push something out of a hole even if you can't push it into a hole; see "// xxx" in player.pas DoRemove
  + when you're being carried by someone and you drop something, it ends up inside them. It should drop out of them.
  + when you drop something from the sky onto a ground surface that's full, it should drop onto something (the biggest non-full thing in a depth-first search?) on the ground surface
@@ -197,6 +197,7 @@ THINGS
  + "push things off table" doesn't work (pushing things off), but game tells you "you would have to push ... off ... first"
  + see whether "put x in ground" does things differently when the ground has a hole that is covered (see "// xxx" in things.pas TSurface.GetInside)
  + "cover" a hole
+ + putting a large thing on a small hole (e.g. "climb hole") it slips off, but if it's the same size it works. it should always work unless the parent is too small?
  + TPile.CanTake() should hint if there's something in the pile. "Your fingers brush against something metalic." -- all things would need a GetDescriptionAdjective() or something
  + digging a pile of earth should reveal all the things in the pile and put them on the ground next to the pile
  + putting things in a pile then filling a hole with the pile causes the things to disappear permanently; they should end up in the ground
