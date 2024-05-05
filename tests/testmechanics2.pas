@@ -11,7 +11,7 @@ procedure TestMechanics2();
 implementation
 
 uses
-   sysutils, storable, matcher, physics, player, locations, things, grammarian, cuddlycamp, world, threshold, testmechanics;
+   sysutils, storable, matcher, physics, player, locations, things, grammarian, world, threshold, testmechanics;
 
 procedure TestMechanics2();
 

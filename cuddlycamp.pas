@@ -66,7 +66,7 @@ begin
    World := TCuddlyWorld.Create();
 
    Tunnel := TGroundLocation.Create('Tunnel Trail', 'the tunnel trail', 'a tunnel trail', 'The tunnel has many turns.', CreateEarthSurface());
-   Tunnel.Add(TFeature.Create('many tunnel turns', 'many? tunnel? (turn/turns twist/twists)@', 'The tunnel twists in many directions, leading to a cave when going generally westward, and leading to the end of the tunnel in a northern direction.'), tpPartOfImplicit);
+   Tunnel.Add(TLocationRepresentative.Create('many tunnel turns', 'many? tunnel? (turn/turns twist/twists)@', 'The tunnel twists in many directions, leading to a cave when going generally westward, and leading to the end of the tunnel in a northern direction.'), tpPartOfImplicit);
    
    TunnelEnd := TGroundLocation.Create('Tunnel End', 'the tunnel end', 'a tunnel end', 'The tunnel end room has white walls.', CreateEarthSurface());
    Tunnel.Add(TStructure.Create('north wall', '(white (north northern)@)* wall/walls', 'The northern wall of the tunnel end room is white.', 'There does not seem to be any way to attach things to the wall.'), tpPartOfImplicit);

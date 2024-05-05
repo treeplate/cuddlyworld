@@ -73,13 +73,27 @@ type
       function GetDescriptionSelf(Perspective: TAvatar): UTF8String; override;
    end;
 
-   // Things that are really just aspects of other things
+   // Things that are really just aspects of other things and are typically very small and light
    TFeature = class(TDescribedPhysicalThing) // @RegisterStorableClass
     protected
       class function CreateFromProperties(Properties: TTextStreamProperties): TFeature; override;
     public
-      constructor Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String);
+      constructor Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String; AMass: TThingMass = tmLight; ASize: TThingSize = tsSmall);
       class procedure DescribeProperties(Describer: TPropertyDescriber); override;
+      function GetRepresentative(): TAtom; override;
+      function GetSurface(): TThing; override;
+      function CanMove(Perspective: TAvatar; var Message: TMessage): Boolean; override;
+   end;
+
+   // Things that are really just the room itself, or aspects thereof; the inside is the parent
+   TLocationRepresentative = class(TDescribedPhysicalThing) // @RegisterStorableClass
+    protected
+      class function CreateFromProperties(Properties: TTextStreamProperties): TLocationRepresentative; override;
+    public
+      constructor Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String; AMass: TThingMass = tmLudicrous; ASize: TThingSize = tsLudicrous);
+      class procedure DescribeProperties(Describer: TPropertyDescriber); override;
+      function GetRepresentative(): TAtom; override;
+      function GetInside(var PositionOverride: TThingPosition): TThing; override;
       function GetSurface(): TThing; override;
       function CanMove(Perspective: TAvatar; var Message: TMessage): Boolean; override;
    end;
@@ -415,6 +429,7 @@ begin
          FCachedLongName := FSingularPattern.GetCanonicalMatch(' ', CurrentFlags);
          Assert(FCachedLongName <> '', 'Couldn''t get a long name out of:'#10 + FSingularPattern.GetPatternDescription());
       end;
+      Assert(FCachedLongName <> '', 'Long name is empty.');
       FCachedLongNameMatcherFlags := CurrentFlags;
    end
    else
@@ -640,9 +655,16 @@ begin
 end;
 
 
-constructor TFeature.Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String);
+constructor TFeature.Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String; AMass: TThingMass = tmLight; ASize: TThingSize = tsSmall);
 begin
-   inherited Create(Name, Pattern, Description, tmLudicrous, tsLudicrous);
+   { needed for default values }
+   inherited;
+end;
+
+function TFeature.GetRepresentative(): TAtom;
+begin
+   Assert(Assigned(FParent));
+   Result := FParent;
 end;
 
 function TFeature.GetSurface(): TThing;
@@ -653,8 +675,9 @@ begin
    end
    else
    begin
-      Result := nil;
-   end;
+      Assert(Assigned(FParent));
+      Result := FParent.GetSurface();
+   end;      
 end;
 
 function TFeature.CanMove(Perspective: TAvatar; var Message: TMessage): Boolean;
@@ -673,6 +696,8 @@ var
    Name: UTF8String;
    Pattern: UTF8String;
    Description: UTF8String;
+   MassValue: TThingMass = tmLudicrous;
+   SizeValue: TThingSize = tsLudicrous;
    StreamedChildren: TStreamedChildren;
 begin
    while (not Properties.Done) do
@@ -680,6 +705,8 @@ begin
       if (Properties.HandleUniqueStringProperty(pnName, Name) and
           Properties.HandleUniqueStringProperty(pnPattern, Pattern) and
           Properties.HandleUniqueStringProperty(pnDescription, Description) and
+          Properties.specialize HandleUniqueEnumProperty<TThingMass>(pnMass, MassValue) and
+          Properties.specialize HandleUniqueEnumProperty<TThingSize>(pnSize, SizeValue) and
           HandleChildProperties(Properties, StreamedChildren)) then
          Properties.FailUnknownProperty();
    end;
@@ -693,6 +720,95 @@ begin
    Describer.AddProperty(pnName, ptString);
    Describer.AddProperty(pnPattern, ptPattern);
    Describer.AddProperty(pnDescription, ptString);
+   Describer.AddProperty(pnMass, ptMass);
+   Describer.AddProperty(pnSize, ptSize);
+   Describer.AddProperty(pnChild, ptChild);
+end;
+
+
+constructor TLocationRepresentative.Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String; AMass: TThingMass = tmLudicrous; ASize: TThingSize = tsLudicrous);
+begin
+   { needed for default values }
+   inherited;
+end;
+
+function TLocationRepresentative.GetRepresentative(): TAtom;
+begin
+   Assert(Assigned(FParent));
+   Result := FParent;
+end;
+
+function TLocationRepresentative.GetInside(var PositionOverride: TThingPosition): TThing;
+begin
+   if (FParent is TThing) then
+   begin
+      Result := FParent as TThing;
+   end
+   else
+   begin
+      Result := FParent.GetInside(PositionOverride);
+      if (not Assigned(Result)) then
+      begin
+         PositionOverride := tpOn;
+         Result := GetSurface();
+      end;
+   end;      
+end;
+
+function TLocationRepresentative.GetSurface(): TThing;
+begin
+   if (FParent is TThing) then
+   begin
+      Result := FParent as TThing;
+   end
+   else
+   begin
+      Result := FParent.GetSurface();
+   end;      
+end;
+
+function TLocationRepresentative.CanMove(Perspective: TAvatar; var Message: TMessage): Boolean;
+begin
+   Assert(Message.IsValid);
+   Result := False;
+   Message := TMessage.Create(mkCannotMoveBecauseLocation, '_ _ _ _.',
+                                                           [Capitalise(GetDefiniteName(Perspective)),
+                                                            IsAre(IsPlural(Perspective)),
+                                                            ThingPositionToString(FPosition),
+                                                            FParent.GetDefiniteName(Perspective)]);
+end;
+
+class function TLocationRepresentative.CreateFromProperties(Properties: TTextStreamProperties): TLocationRepresentative;
+var
+   Name: UTF8String;
+   Pattern: UTF8String;
+   Description: UTF8String;
+   MassValue: TThingMass = tmLudicrous;
+   SizeValue: TThingSize = tsLudicrous;
+   StreamedChildren: TStreamedChildren;
+begin
+   while (not Properties.Done) do
+   begin
+      if (Properties.HandleUniqueStringProperty(pnName, Name) and
+          Properties.HandleUniqueStringProperty(pnPattern, Pattern) and
+          Properties.HandleUniqueStringProperty(pnDescription, Description) and
+          Properties.specialize HandleUniqueEnumProperty<TThingMass>(pnMass, MassValue) and
+          Properties.specialize HandleUniqueEnumProperty<TThingSize>(pnSize, SizeValue) and
+          HandleChildProperties(Properties, StreamedChildren)) then
+         Properties.FailUnknownProperty();
+   end;
+   Properties.EnsureSeen([pnName, pnPattern, pnDescription]);
+   Result := Create(Name, Pattern, Description);
+   StreamedChildren.Apply(Result);
+end;
+
+class procedure TLocationRepresentative.DescribeProperties(Describer: TPropertyDescriber);
+begin
+   Describer.AddProperty(pnName, ptString);
+   Describer.AddProperty(pnPattern, ptPattern);
+   Describer.AddProperty(pnDescription, ptString);
+   Describer.AddProperty(pnMass, ptMass);
+   Describer.AddProperty(pnSize, ptSize);
    Describer.AddProperty(pnChild, ptChild);
 end;
 

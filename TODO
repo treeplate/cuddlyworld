@@ -60,6 +60,7 @@ NAVIGATION
  + "open north" doesn't work (should try checking atoms in that direction)
  + "open north door" doesn't work unless "north" is in the door name
  + walking past someone on the stairs doesn't tell the person on the stairs
+ + entering things should check all the things until there (e.g. if bag of holding is inside sack, check that you can enter sack to enter bag)
 
 DOOR BUGS
  + "find doorway" when in the threshold room should use the room's context fragment, rather than "The doorway is at the doorway."

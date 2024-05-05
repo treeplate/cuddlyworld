@@ -84,8 +84,8 @@ procedure TestMechanics7();
         'You fumble the coin 4.',
         'The coin 4 slides off the big block.',
         'Bag of holding: Taken.',
-        'You fumble the coin 5.',
-        'The coin 5 slides off the big block.',
+        'You fumble the bag of holding.',
+        'The bag of holding slides off the big block.',
         'Big block: Given your current position, that would be quite difficult.'
       ]);
       RunCommand('put coin 6 on me', ['Placed on you.']);

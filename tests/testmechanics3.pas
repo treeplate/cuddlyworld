@@ -11,7 +11,7 @@ procedure TestMechanics3();
 implementation
 
 uses
-   sysutils, storable, matcher, physics, player, locations, things, thingdim, grammarian, cuddlycamp, world, threshold, testmechanics;
+   sysutils, storable, matcher, physics, player, locations, things, thingdim, grammarian, world, threshold, testmechanics;
 
 procedure TestMechanics3();
 
@@ -81,12 +81,12 @@ procedure TestMechanics3();
       RunCommand('x the colors on the faces from the people going by', ['The colours of the faces of the people going by are as pretty as the colours of the rainbow.']);
       RunCommand('x the colors of the rainbow', ['The colours of the rainbow are so pretty in the sky.']);
       RunCommand('x the colors from the rainbow', ['The colours of the rainbow are so pretty in the sky.']);
-      RunCommand('take all', ['People going by: Taken.', 'You fumble the people going by.', 'Colours: The colours are on the faces.']); // should this take the bush? XXX
+      RunCommand('take all', ['Trees of green: The trees of green are far too heavy.', 'Rose bush: Taken.', 'People going by: Taken.', 'You fumble the people going by.', 'Colours: The colours are on the faces.']);
       RunCommand('enter bag', ['That would prove rather challenging given where the bag of holding is relative to yourself.']);
       RunCommand('drop bag', ['Dropped.']);
       RunCommand('enter bag', ['In the bag of holding (at the world)', 'The bag has the name "Tester" embroidered around its rim.', 'The bag of holding is on the ground.']);
       RunCommand('exit bag', ['I don''t understand how to exit "bag".']); // XXX
-      RunCommand('exit', ['World', 'The world is wonderful. There are trees of green here. There is a rose bush here.', 'There are people going by here.', 'There is a bag of holding here.']);
+      RunCommand('exit', ['World', 'The world is wonderful. There are trees of green here.', 'There are people going by here.', 'There is a bag of holding here.']);
       RunCommand('take bag', ['Taken.']);
    end;
 

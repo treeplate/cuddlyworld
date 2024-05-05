@@ -4,7 +4,8 @@ program tests;
 uses
    {$IFDEF DEBUG} debug, {$ENDIF}
    sysutils, storable, matcher, lists, physics, player, locations, things, grammarian, cuddlycamp, world, threshold,
-   testmechanics, testmechanics1, testmechanics2, testmechanics3, testmechanics4, testmechanics5, testmechanics6, testmechanics7,
+   testmechanics, testmechanics1, testmechanics2, testmechanics3, testmechanics4, testmechanics5, testmechanics6, testmechanics7, testmechanics8,
+   teststorage,
    base64encoder, client; // client is used just to make sure it gets compiled when compiling tests
 
 const
@@ -516,9 +517,7 @@ begin
    Writeln('CuddlyWorld Tests initializing...');
    RegisterStorableClass(TTestWorld);
    {$IFDEF DEBUG} Writeln('CuddlyWorld debugging enabled.'); {$ENDIF}
-   TestBase64Encoder();
-   TestMatcher();
-   TestLists();
+   TestMechanics8.TestMechanics8();
    TestMechanics7.TestMechanics7();
    TestMechanics6.TestMechanics6();
    TestMechanics4.TestMechanics4();
@@ -527,6 +526,11 @@ begin
    TestMechanics2.TestMechanics2();
    TestMechanics1.TestMechanics1();
    TestPlot();
+   Writeln('OTHERS');
    TestClient();
+   TestStorage.RunTests();
+   TestBase64Encoder();
+   TestMatcher();
+   TestLists();
    Writeln('CuddlyWorld Tests complete.');
 end.

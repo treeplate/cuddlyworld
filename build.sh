@@ -14,6 +14,9 @@ MODE="DEBUG"
 # (the world doesn't support adding players, you need to hard-code them in)
 # (don't forget to comment out genesis below)
 
+# temporary workaround for weird compiler bug
+rm -f ../bin/*.ppu
+
 pushd . > /dev/null
 # DEFINES="-dVERBOSE"
 MAIN="tests" MODE="$MODE" PATHS="-Futests" DEFINES="$DEFINES" lib/compile.sh || exit 1

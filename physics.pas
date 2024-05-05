@@ -156,7 +156,7 @@ type
       procedure Remove(Thing: TThingList.TEnumerator);
       function CanPut(Thing: TThing; ThingPosition: TThingPosition; Care: TPlacementStyle; Perspective: TAvatar; var Message: TMessage): Boolean; virtual; // whether Thing can be put on/in this Atom (only supports tpOn, tpIn) without things falling
       procedure Put(Thing: TThing; Position: TThingPosition; Care: TPlacementStyle; Perspective: TAvatar); virtual;
-      function GetMassManifest(): TThingMassManifest; virtual; { self and children that are not tpScenery }
+      function GetMassManifest(): TThingMassManifest; virtual; { self and children }
       function GetOutsideSizeManifest(): TThingSizeManifest; virtual; { external size of the object (e.g. to decide if it fits inside another): self and children that are tpOutside; add tpContained children if container is flexible }
       function GetInsideSizeManifest(): TThingSizeManifest; virtual; { only children that are tpContained }
       function GetSurfaceSizeManifest(): TThingSizeManifest; virtual; { children that are tpSurface (e.g. to decide if something else can be added to the object's surface or if the surface is full already) }
@@ -361,6 +361,9 @@ type
      const
       loImportantLandmarks = [loAutoDescribe, loThreshold]; // don't include the same atom in more than one direction if you use either of these
      var
+        // XXX FImportantLandmarks is an array into unstable memory! this is bad!
+        // XXX also we don't properly serialize FImportantLandmarks so it can change order!
+        // XXXXXXX
       FImportantLandmarks: array of PDirectionalLandmark; // pointers into FDirectionalLandmarks with loImportantLandmarks
       FDirectionalLandmarks: array[TCardinalDirection] of array of TDirectionalLandmark;
       class function HandleLandmarkProperties(Properties: TTextStreamProperties; var Values: TStreamedLandmarks): Boolean;
@@ -499,11 +502,27 @@ begin
             Perspective.AnnounceDeparture(Destination, Direction);
          for NotificationTarget in NotificationList do
             NotificationTarget.HandlePassedThrough(Traveller, Source, SpecificDestination, Position, Perspective);
-         SpecificDestination.Put(Traveller, Position, psCarefully, Perspective);
-         if (Perspective = Traveller) then
+         if ((Traveller.Parent = SpecificDestination) and (Traveller.Position = Position)) then
          begin
-            Perspective.AnnounceArrival(Source.GetRepresentative(), ReverseCardinalDirection(Direction));
-            Perspective.DoLook();
+            if (Perspective = Traveller) then
+            begin
+               Message := TMessage.Create(mkNoOp, '_ _ back where _ started, _ _.', 
+                                          [Capitalise(Traveller.GetDefiniteName(Perspective)),
+                                           IsAre(Perspective.IsPlural(Perspective)),
+                                           Traveller.GetSubjectPronoun(Perspective),
+                                           ThingPositionToString(Position),
+                                           SpecificDestination.GetDefiniteName(Perspective)]);
+               Perspective.AvatarMessage(Message);
+            end;
+         end
+         else
+         begin
+            SpecificDestination.Put(Traveller, Position, psCarefully, Perspective);
+            if (Perspective = Traveller) then
+            begin
+               Perspective.AnnounceArrival(Source.GetRepresentative(), ReverseCardinalDirection(Direction));
+               Perspective.DoLook();
+            end;
          end;
       end
       else
@@ -558,11 +577,27 @@ begin
       begin
          Assert(Message.AsKind = mkSuccess);
          Assert(Message.AsText = '');
-         Destination.Put(Traveller, tpOn, psCarefully, Perspective);
-         if (Perspective = Traveller) then
+         if ((Traveller.Parent = Destination) and (Traveller.Position = tpOn)) then
          begin
-            // XXX announcements, like AnnounceArrival() and co
-            Perspective.DoLook();
+            if (Perspective = Traveller) then
+            begin
+               Message := TMessage.Create(mkNoOp, '_ _ back where _ started, _ _.', 
+                                          [Capitalise(Traveller.GetDefiniteName(Perspective)),
+                                           IsAre(Perspective.IsPlural(Perspective)),
+                                           Traveller.GetSubjectPronoun(Perspective),
+                                           ThingPositionToString(tpOn),
+                                           Destination.GetDefiniteName(Perspective)]);
+               Perspective.AvatarMessage(Message);
+            end;
+         end
+         else
+         begin
+            Destination.Put(Traveller, tpOn, psCarefully, Perspective);
+            if (Perspective = Traveller) then
+            begin
+               // XXX announcements, like AnnounceArrival() and co
+               Perspective.DoLook();
+            end;
          end;
       end
       else
@@ -601,11 +636,27 @@ begin
                Perspective.AnnounceDeparture(Destination);
             for NotificationTarget in NotificationList do
                NotificationTarget.HandlePassedThrough(Traveller, Source, SpecificDestination, Position, Perspective);
-            SpecificDestination.Put(Traveller, Position, psCarefully, Perspective);
-            if (Perspective = Traveller) then
+            if ((Traveller.Parent = SpecificDestination) and (Traveller.Position = tpOn)) then
             begin
-               Perspective.AnnounceArrival(Source.GetRepresentative());
-               Perspective.DoLook();
+               if (Perspective = Traveller) then
+               begin
+                  Message := TMessage.Create(mkNoOp, '_ _ back where _ started, _ _.', 
+                                             [Capitalise(Traveller.GetDefiniteName(Perspective)),
+                                              IsAre(Perspective.IsPlural(Perspective)),
+                                              Traveller.GetSubjectPronoun(Perspective),
+                                              ThingPositionToString(tpOn),
+                                              SpecificDestination.GetDefiniteName(Perspective)]);
+                  Perspective.AvatarMessage(Message);
+               end;
+            end
+            else
+            begin
+               SpecificDestination.Put(Traveller, Position, psCarefully, Perspective);
+               if (Perspective = Traveller) then
+               begin
+                  Perspective.AnnounceArrival(Source.GetRepresentative());
+                  Perspective.DoLook();
+               end;
             end;
          end
          else
@@ -939,6 +990,7 @@ var
    OldParent: TAtom;
 begin
    OldParent := Thing.FParent;
+   Assert((OldParent <> Self) or (Position <> Thing.FPosition)); // added this late, so callers might still need updating
    Add(Thing, Position);
    Thing.Moved(OldParent, Care, Perspective);
    HandleAdd(Thing, Perspective);
@@ -950,8 +1002,7 @@ var
 begin
    Zero(Result);
    for Child in FChildren do
-      if (not (Child.Position in tpScenery)) then
-         Result := Result + Child.GetMassManifest();
+      Result := Result + Child.GetMassManifest();
 end;
 
 function TAtom.GetOutsideSizeManifest(): TThingSizeManifest;
@@ -2457,8 +2508,10 @@ constructor TLocation.Read(Stream: TReadStream);
 var
    Direction: TCardinalDirection;
    Index: Integer;
+   // ImportantLandmarkCount: Cardinal;
 begin
    inherited;
+   // ImportantLandmarkCount := 0;
    for Direction := Low(FDirectionalLandmarks) to High(FDirectionalLandmarks) do
    begin
       SetLength(FDirectionalLandmarks[Direction], Stream.ReadCardinal());
@@ -2472,9 +2525,18 @@ begin
             begin
                SetLength(FImportantLandmarks, Length(FImportantLandmarks)+1);
                FImportantLandmarks[High(FImportantLandmarks)] := @FDirectionalLandmarks[Direction][Index];
+               // Inc(ImportantLandmarkCount);
             end;
          end;
    end;
+   // if (ImportantLandmarkCount > 0) then
+   // begin
+   //    SetLength(FImportantLandmarks, ImportantLandmarkCount);
+   //    for Index := 0 to ImportantLandmarkCount - 1 do
+   //    begin
+   //       Stream.ReadReference(@Pointer(FImportantLandmarks[Index]));
+   //    end;
+   // end;
 end;
 
 procedure TLocation.Write(Stream: TWriteStream);
@@ -2483,6 +2545,7 @@ var
    Index: Cardinal;
 begin
    inherited;
+   // Stream.WriteCardinal(Length(FImportantLandmarks));
    for Direction := Low(FDirectionalLandmarks) to High(FDirectionalLandmarks) do
    begin
       Stream.WriteCardinal(Cardinal(Length(FDirectionalLandmarks[Direction])));
@@ -2493,6 +2556,10 @@ begin
             Stream.WriteReference(FDirectionalLandmarks[Direction][Index].Atom);
          end;
    end;
+   // for Index := 0 to Length(FImportantLandmarks) - 1 do
+   // begin
+   //    Stream.WriteReference(FImportantLandmarks[Index]);
+   // end;
 end;
 
 class function TLocation.HandleLandmarkProperties(Properties: TTextStreamProperties; var Values: TStreamedLandmarks): Boolean;
@@ -3010,6 +3077,7 @@ function TLocation.Debug(Perspective: TAvatar): UTF8String;
 var
    Direction: TCardinalDirection;
    PresenceMode: TGetPresenceStatementMode;
+   Child: TThing;
 begin
    Result :=
       'GetLook:' + WithNewlineIfMultiline(GetLook(Perspective)) + #10 +
@@ -3042,6 +3110,16 @@ begin
    Result := Result + 'GetDescriptionRemoteBrief:'#10;
    for Direction in TCardinalDirection do
       Result := Result + '  ' + CardinalDirectionToString(Direction) + ':' + WithNewlineIfMultiline(GetDescriptionRemoteDetailed(Perspective, Direction, 'Debugging', [])) + #10;
+   if (FChildren.Length = 0) then
+   begin
+      Result := Result + 'No children.' + #10;
+   end
+   else
+   begin
+      Result := Result + 'Children:' + #10;
+      for Child in FChildren do
+         Result := Result + ' - ' + Child.GetDefiniteName(nil) + #10;
+   end;
 end;
 {$ENDIF}
 

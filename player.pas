@@ -8,12 +8,13 @@ uses
    storable, physics, grammarian, messages, lists, thingdim, thingseeker, typinfo;
 
 const
-   MaxCarryMass = tmPonderous; { inclusive }
-   MaxCarrySize = tsGigantic; { not inclusive }
-   MaxPushMass = tmLudicrous; { not inclusive }
-   MaxPushSize = tsLudicrous; { not inclusive }
-   MaxShakeMass = tmHeavy; { inclusive }
-   MaxShakeSize = tsMassive; { inclusive }
+   MaxCarrySingleMass = tmPonderous; { inclusive }
+   MaxCarryMass: TThingMassManifest = (0, 0, 2, 0); { exclusive }
+   MaxCarrySize = tsGigantic; { exclusive }
+   MaxPushMass = tmLudicrous; { exclusive }
+   MaxPushSize = tsLudicrous; { exclusive }
+   MaxShakeMass: TThingMassManifest = (0, 2, 0, 0); { exclusive }
+   MaxShakeSize = tsGigantic; { exclusive }
    MaxCarryCount = 10; { inclusive }
    MaxBalanceCount = 1; { inclusive }
 
@@ -90,6 +91,7 @@ type
       function CanCarryThing(Thing: TThing; var Message: TMessage): Boolean;
       function CanPushThing(Thing: TThing; var Message: TMessage): Boolean;
       function CanShakeThing(Thing: TThing; var Message: TMessage): Boolean;
+      procedure PutCorrectly(CurrentSubject: TThing; Target: TAtom; ThingPosition: TThingPosition; Care: TPlacementStyle);
       procedure DoPutInternal(CurrentSubject: TThing; Target: TAtom; ThingPosition: TThingPosition; Care: TPlacementStyle);
       procedure SetContext(Context: UTF8String);
       procedure ResetContext();
@@ -192,7 +194,7 @@ begin
    FPassword := APassword;
    FPronouns := APronouns;
    Bag := TBag.Create('bag of holding', '(embroidered (bag/bags (of holding)?) (labeled ' + Capitalise(AName) + '))&', 'The bag has the name "' + Capitalise(AName) + '" embroidered around its rim.', tsLudicrous);
-   Bag.Add(TScenery.Create('rim', '(rim/rims (bag? rim/rims))@', 'Around the bag''s rim is embroidered the name "' + Capitalise(AName) + '".'), tpAmbiguousPartOfImplicit); { the weird pattern is to avoid putting "bag" in the canonical description, as in, "the bag rim of the bag of holding" }
+   Bag.Add(TFeature.Create('rim', '(rim/rims (bag? rim/rims))@', 'Around the bag''s rim is embroidered the name "' + Capitalise(AName) + '".'), tpAmbiguousPartOfImplicit); { the weird pattern is to avoid putting "bag" in the canonical description, as in, "the bag rim of the bag of holding" }
    Add(Bag, tpCarried);
 end;
 
@@ -222,6 +224,7 @@ end;
 procedure TPlayer.DoLook();
 begin
    Assert((not (FPosition in tpContained)) or (FParent.GetRepresentative() = FParent)); // otherwise we'd look outside our parent
+   Assert(FPosition in tpPlayerPositions);
    SendMessage(FParent.GetRepresentative().GetLook(Self));
 end;
 
@@ -523,6 +526,7 @@ end;
 
 function TPlayer.GetPresenceStatement(Perspective: TAvatar; Mode: TGetPresenceStatementMode): UTF8String;
 begin
+   Assert(FPosition in tpPlayerPositions);
    if (Mode = psThereIsAThingHere) then
       Result := Capitalise(GetDefiniteName(Perspective)) + ' ' + IsAre(IsPlural(Perspective)) + ' here.'
    else
@@ -835,6 +839,22 @@ begin
    end;
 end;
 
+procedure TPlayer.PutCorrectly(CurrentSubject: TThing; Target: TAtom; ThingPosition: TThingPosition; Care: TPlacementStyle);
+begin
+   Assert(Assigned(Target));
+   if (ThingPosition = tpIn) then
+   begin
+      Target := Target.GetInside(ThingPosition);
+      Assert(Assigned(Target));
+   end;
+   if (ThingPosition = tpOn) then
+   begin
+      Target := Target.GetSurface();
+      Assert(Assigned(Target));
+   end;
+   Target.Put(CurrentSubject, ThingPosition, Care, Self);
+end;
+
 procedure TPlayer.DoPutInternal(CurrentSubject: TThing; Target: TAtom; ThingPosition: TThingPosition; Care: TPlacementStyle);
 var
    Message: TMessage;
@@ -918,11 +938,7 @@ begin
          SendMessage(Message.AsText);
          if (Success) then
          begin
-            if (ThingPosition = tpIn) then
-            begin
-               Target := Target.GetInside(ThingPosition);
-            end;
-            Target.Put(CurrentSubject, ThingPosition, Care, Self);
+            PutCorrectly(CurrentSubject, Target, ThingPosition, Care);
          end;
       end;
    end;
@@ -1165,11 +1181,7 @@ begin
                   SendMessage(Message.AsText);
                   if (Success) then
                   begin
-                     if (ThingPosition = tpIn) then
-                     begin
-                        SurrogateTarget := SurrogateTarget.GetInside(ThingPosition);
-                     end;
-                     SurrogateTarget.Put(CurrentSubject, ThingPosition, psCarefully, Self);
+                     PutCorrectly(CurrentSubject, SurrogateTarget, ThingPosition, psCarefully);
                   end;
                end;
             end;
@@ -1269,11 +1281,7 @@ begin
                            begin
                               for CurrentNotifiee in NotificationList do
                                  CurrentNotifiee.HandlePassedThrough(CurrentSubject, CurrentSubject.Parent, Destination, ThingPosition, Self);
-                              if (ThingPosition = tpIn) then
-                              begin
-                                 Destination := Destination.GetInside(ThingPosition);
-                              end;
-                              Destination.Put(CurrentSubject, ThingPosition, psRoughly, Self);
+                              PutCorrectly(CurrentSubject, Destination, ThingPosition, psRoughly);
                            end;
                         end
                         else
@@ -1462,11 +1470,7 @@ begin
                   SendMessage(Message.AsText);
                   if (Success) then
                   begin
-                     if (DestinationPosition = tpIn) then
-                     begin
-                        Destination := Destination.GetInside(DestinationPosition);
-                     end;
-                     Destination.Put(CurrentSubject, DestinationPosition, psCarefully, Self);
+                     PutCorrectly(CurrentSubject, Destination, DestinationPosition, psCarefully);
                   end;
                end;
             end;
@@ -1742,7 +1746,7 @@ procedure TPlayer.HandleAdd(Thing: TThing; Blame: TAvatar);
             Count := Count + 1; // $R-
          end;
       end;
-      while ((Masses > MaxCarryMass) or (Sizes >= MaxCarrySize) or (Count > MaxCarryCount)) do
+      while ((Masses >= MaxCarryMass) or (Sizes >= MaxCarrySize) or (Count > MaxCarryCount) or ((Masses > MaxCarrySingleMass) and (Count > 1))) do
       begin
          Assert(Assigned(FChildren));
          Zero(CandidateMass);
@@ -1764,7 +1768,8 @@ procedure TPlayer.HandleAdd(Thing: TThing; Blame: TAvatar);
          Assert(MaxCarryCount >= 0);
          Count := Count - 1; // can't go negative since Count > MaxCarryCount and MaxCarryCount >= 0 // $R-
          DoBroadcast([Self], nil, [C(M(@GetDefiniteName)), SP, MP(Self, M('fumbles'), M('fumble')), SP, M(@Candidate.GetDefiniteName), M('.')]);
-         FParent.Put(Candidate, tpOn, psRoughly, Self);
+         Assert(FPosition in tpPlayerPositions);
+         FParent.Put(Candidate, FPosition, psRoughly, Self);
       end;
    end;
 
@@ -1781,7 +1786,7 @@ begin
       Result := False;
    end
    else
-   if (Thing.GetMassManifest() > MaxCarryMass) then
+   if (Thing.GetMassManifest() >= MaxCarryMass) then
    begin
       Result := False;
       Message := TMessage.Create(mkTooHeavy, '_ _ far too heavy.',
@@ -1837,7 +1842,7 @@ begin
       Result := False;
    end
    else
-   if (Thing.GetMassManifest() > MaxShakeMass) then
+   if (Thing.GetMassManifest() >= MaxShakeMass) then
    begin
       Result := False;
       Message := TMessage.Create(mkTooHeavy, '_ _ too heavy to shake.',
@@ -1845,7 +1850,7 @@ begin
                                               IsAre(Thing.IsPlural(Self))]);
    end
    else
-   if (Thing.GetOutsideSizeManifest() > MaxShakeSize) then
+   if (Thing.GetOutsideSizeManifest() >= MaxShakeSize) then
    begin
       Result := False;
       Message := TMessage.Create(mkTooBig, '_ _ too big to shake.',
@@ -2107,5 +2112,6 @@ begin
 end;
 
 initialization
-{$INCLUDE registrations/player.inc}
+   {$INCLUDE registrations/player.inc}
+   Assert(MaxCarrySingleMass < MaxCarryMass);
 end.

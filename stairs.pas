@@ -5,7 +5,7 @@ unit stairs;
 interface
 
 uses
-   locations, things, grammarian, matcher, storable, physics, messages, thingdim;
+   locations, things, grammarian, storable, physics, messages, thingdim;
 
 type
    TVerticalPathLocation = class(TNamedLocation) // @RegisterStorableClass

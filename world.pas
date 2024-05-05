@@ -21,7 +21,7 @@ type
       constructor Read(Stream: TReadStream); override;
       procedure Write(Stream: TWriteStream); override;
       procedure AddLocation(Location: TLocation); { World will free these }
-      procedure AddGlobalThing(GlobalThing: TThing); { World will free these }
+      procedure AddGlobalThing(GlobalThing: TThing); { World will free these } // XXX should we remove this? nothing seems to use it...
       procedure AddPlayer(Player: TPlayer); virtual; { these must added to the world before this method is called (derived classes can override this method to do that) }
       function GetPlayer(Name: UTF8String): TPlayer;
       function GetPlayerCount(): Cardinal;
@@ -31,6 +31,7 @@ type
       procedure SetDirty();
       procedure Saved();
       property Dirty: Boolean read FDirty;
+      {$IFOPT C+} procedure Dump(); {$ENDIF}
    end;
 
 implementation
@@ -41,7 +42,7 @@ uses
 
 var
    FailedCommandLog: Text;
-   GlobalThingCollector: TThingCollector; // from thingseeker; used in parser.inc
+   GlobalThingCollector: TThingCollector; // from thingseeker; used in parser.inc (unrelated to FGlobalThings)
 
 type
    TDirectPlayerPropertyDescriber = class(TPropertyDescriber)
@@ -491,6 +492,34 @@ begin
     raise Exception.Create('Unknown verb in ExecuteAction(): ' + IntToStr(Ord(Action.Verb)));
    end;
 end;
+
+{$IFOPT C+}
+procedure TWorld.Dump();
+var
+   Depth: Cardinal = 0;
+
+   procedure ThingDumper(Thing: TThing);
+   var
+      Index: Cardinal;
+   begin
+      for Index := 0 to Depth do
+         System.Write(' ');
+      Writeln(Thing.GetDefiniteName(nil));
+      Inc(Depth);
+      Thing.WalkChildren(@ThingDumper);
+      Dec(Depth);
+   end;
+
+var
+   Location: TLocation;
+begin
+   for Location in FLocations do
+   begin
+      Writeln(Location.GetDefiniteName(nil));
+      Location.WalkChildren(@ThingDumper);
+   end;
+end;
+{$ENDIF}
 
 initialization
 {$INCLUDE registrations/world.inc}

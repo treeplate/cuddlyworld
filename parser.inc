@@ -947,19 +947,12 @@
             if (Player.Position in tpContained) then
             begin
                Action.PutPosition := tpIn;
-               Action.PutTarget := Player.Parent.GetInside(Action.PutPosition)
-               {$IFOPT C+} ; Assert(Assigned(Action.PutTarget)); Action.PutTarget := Action.PutTarget {$ENDIF} // because otherwise, where are _we_??
-                                                                        .GetSurface();
-               Assert(Assigned(Action.PutTarget)); // things always have surfaces
             end
             else
             begin
                Action.PutPosition := tpOn;
-               Action.PutTarget := Player.Parent.GetRepresentative().GetSurface();
-               if (not Assigned(Action.PutTarget)) then
-                  Action.PutTarget := Player.Parent;
             end;
-            Assert(Assigned(Action.PutTarget));
+            Action.PutTarget := Player.Parent;
             if (Action.PutCare = psCarefully) then
                Player.AutoDisambiguated(ThingPositionToString(Action.PutPosition) + ' ' + Action.PutTarget.GetDefiniteName(Player));
          end
@@ -986,6 +979,7 @@
          begin
             Fail('I don''t understand how to ' + Verb + ' things "' + OriginalTokens[CurrentToken] + '".');
          end;
+         Assert(Assigned(Action.PutTarget));
       end;
    end;
 
@@ -1071,9 +1065,9 @@
             else
             if (GetPrepositionThing('to', [], 'move things', Action.MoveTarget)) then
             begin
+               Action.MoveAmbiguous := True;
                if (not CanEnd()) then
                   Fail('I don''t understand how to move things to other things "' + OriginalTokens[CurrentToken] + '".');
-               Action.MoveAmbiguous := True;
             end
             else
             if (Tokens[CurrentToken] = 'out') then
@@ -1154,8 +1148,6 @@
    end;
 
    function GetPush(var Action: TAction): Boolean;
-   var
-      PositionOverride: TThingPosition;
    begin
       if (Tokens[CurrentToken] = 'push') then
       begin
@@ -1203,25 +1195,9 @@
          else
          if (GetPrepositionThing('to', [], 'push things', Action.MoveTarget)) then
          begin
-            // XXX should probably change this to use MoveAmbiguous = True
-            PositionOverride := tpIn;
-            if (Assigned(Action.MoveTarget.GetInside(PositionOverride))) then
-            begin
-               // XXX could mention PositionOverride - '(inside hut, on floor)' - if we could also parse that
-               Player.AutoDisambiguated('inside ' + Action.MoveTarget.GetDefiniteName(Player));
-               Assert(@Action.PushSubject = @Action.MoveSubject);
-               Action.Verb := avMove;
-               Action.MoveAmbiguous := False;
-               Action.MovePosition := tpIn;
-            end
-            else
-            begin
-               Player.AutoDisambiguated('on ' + Action.MoveTarget.GetDefiniteName(Player));
-               Assert(@Action.PushSubject = @Action.MoveSubject);
-               Action.Verb := avMove;
-               Action.MoveAmbiguous := False;
-               Action.MovePosition := tpOn;
-            end;
+            Assert(@Action.PushSubject = @Action.MoveSubject);
+            Action.Verb := avMove;
+            Action.MoveAmbiguous := True;
             if (not CanEnd()) then
                Fail('I don''t understand how to push things to other things "' + OriginalTokens[CurrentToken] + '".');
          end

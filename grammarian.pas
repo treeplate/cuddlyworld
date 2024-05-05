@@ -61,22 +61,23 @@ const
    tpEverything = [Low(TThingPosition) .. High(TThingPosition)];
    tpAutoDescribe = [tpSurfaceOpening, tpAt, tpPlantedIn]; { things that should be included in the main description of an object }
    tpAutoDescribeDirectional = [tpDirectionalOpening, tpDirectionalPath]; { things that should be included in the main description of a location, with a direction (these also have to be part of the FDirectionalLandmarks arrays, and not tpContained in something else) }
-   tpScenery = [tpPartOfImplicit, tpAmbiguousPartOfImplicit, tpAroundImplicit, tpAtImplicit, tpOnImplicit, tpDirectionalOpening, tpDirectionalPath, tpSurfaceOpening, tpAt]; { parent includes the mass of these children already, and conceptually these children essentially _are_ the parent, or at least part of it }
+   tpScenery = [tpPartOfImplicit, tpAmbiguousPartOfImplicit, tpAroundImplicit, tpAtImplicit, tpOnImplicit, tpDirectionalOpening, tpDirectionalPath, tpSurfaceOpening, tpAt]; { conceptually these children essentially _are_ the parent, or at least part of it, so you can't e.g. look under them }
    tpObtrusive = [tpPlantedInImplicit, tpOn, tpPlantedIn, tpIn, tpEmbedded, tpCarried]; { used by GetObtrusiveObstacles(); these are things that can be shaken loose or that can block doors }
    tpNoticeable = [tpAt, tpOn]; { things that one might comment on, e.g. when walking past them }
    tpPertinent = [tpPartOfImplicit, tpOnImplicit, tpPlantedInImplicit, tpSurfaceOpening, tpOn, tpPlantedIn, tpInstalledIn, tpIn, tpEmbedded, tpCarried]; { ways for things to be related to other things that are important when describing their place in a horizon description }
-   tpCountsForAll = [tpOnImplicit, tpOn, tpIn, tpCarried]; { things that should be included when listing 'all', as in "take all" }
+   tpCountsForAll = [tpOnImplicit, tpOn, tpIn, tpCarried, tpPlantedIn]; { things that should be included when listing 'all', as in "take all" }
    tpSeparate = [tpAroundImplicit, tpAtImplicit, tpAt, tpInstalledIn, tpIn, tpCarried]; { affects how things are pushed around }
    tpContained = [tpIn, tpEmbedded]; { things that shouldn't be aware of goings-on outside, if the parent is closed; count towards InsideSizeManifest; also, things that treat cdOut as meaning "go to parent" }
    tpOpening = [tpSurfaceOpening, tpDirectionalOpening];
    tpArguablyOn = [tpPartOfImplicit, tpAmbiguousPartOfImplicit, tpAroundImplicit, tpAtImplicit, tpOnImplicit, tpPlantedInImplicit, tpInstalledIn, tpAt, tpOn, tpPlantedIn, tpDirectionalPath]; { things that the user can refer to as being "on" then parent; "down" will try to climb down }
    tpArguablyOf = [tpPartOfImplicit, tpAmbiguousPartOfImplicit, tpOnImplicit, tpPlantedInImplicit, tpDirectionalOpening, tpSurfaceOpening, tpAt, tpPlantedIn, tpInstalledIn, tpEmbedded, tpCarried]; // positions for children that should by found by "find child of parent"
    tpArguablyInside = [tpPlantedInImplicit, tpPlantedIn, tpInstalledIn, tpIn, tpEmbedded, tpDirectionalOpening, tpSurfaceOpening]; { things that the user can refer to as being "in" their parent }
-   tpOutside = [tpPlantedInImplicit, tpOn, tpPlantedIn, tpCarried]; { things that count towards OutsideSizeManifest }
-   tpSurface = [tpPlantedInImplicit, tpOn, tpPlantedIn]; { things that count towards SurfaceSizeManifest }
+   tpSurface = [tpPlantedInImplicit, tpPlantedIn, tpInstalledIn, tpOn]; { things that count towards SurfaceSizeManifest }
    tpDeferNavigationToParent = [tpPartOfImplicit, tpAmbiguousPartOfImplicit, tpAroundImplicit, tpAtImplicit, tpOnImplicit, tpPlantedInImplicit, tpDirectionalPath, tpAt, tpOn, tpInstalledIn]; // see below
    tpTransitivePositions = [tpAroundImplicit, tpAtImplicit, tpOnImplicit, tpAt, tpOn, tpIn, tpCarried]; // see below
-
+   tpPlayerPositions = [tpAt, tpOn, tpIn, tpCarried]; // places that a player could end up (asserted in various places, notably in DoLook and in the fumbling code)
+   tpOutside = tpEverything - (tpSurface + tpContained); { things that count towards OutsideSizeManifest }
+  
    { tpDeferNavigationToParent: If a thing A is tpOn a thing B and
      tries to navigate, then we defer to B to tell A where to go. If a
      thing A is tpIn a thing B, then we don't, because you first have
@@ -131,6 +132,10 @@ function NumberToEnglish(Number: Cardinal): UTF8String;
 function IsAre(const IsPlural: Boolean): UTF8String; inline;
 
 implementation
+
+{$IFOPT C+}
+uses typedump;
+{$ENDIF}
 
 procedure Fail(Message: UTF8String);
 begin
@@ -633,7 +638,7 @@ begin
      tpDirectionalPath: Result := 'along';
      tpSurfaceOpening, tpInstalledIn, tpIn, tpEmbedded: Result := 'into';
      tpCarried: Result := 'so that it is carried by'; // assert instead?
-     tpPlantedInImplicit, tpPlantedIn: Result := 'so that it is planted in';
+     tpPlantedInImplicit, tpPlantedIn: Result := 'so that it is planted in'; // assert instead?
    end;
 end;
 
@@ -662,6 +667,10 @@ begin
       Result := 'is';
 end;
 
+initialization
+{$IFOPT C+}
+   Assert(tpEverything - (tpOutside + tpContained + tpSurface) = [], specialize SetToString<TThingPositionFilter>(tpEverything - (tpOutside + tpContained + tpSurface)));
+{$ENDIF}
 end.
 
 {
