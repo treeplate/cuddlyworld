@@ -168,21 +168,21 @@ procedure TestMechanics4();
          ]
       );
       RunCommand('debug connect south and back to room with loAutoDescribe loPermissibleNavigationTarget', ['Abracadabra! Going south from the Land now leads to the Room.', 'Abracadabra! Going north from the Room now leads to the Land.']);
-      RunCommand('south', ['Room', 'Nothing is particularly noteworthy about this location. To the south is a doorway. To the north is the land.']);
+      RunCommand('south', ['Room', 'Nothing is particularly noteworthy about this location. To the south is a door. To the north is the land.']);
       RunCommand('find boogie', ['I can''t find anything like a "boogie" here.']); // verifies you can seek things when a door is around without loThreshold (used to crash)
       RunCommand('open door', ['Opened.']);
-      RunCommand('move me to door', ['You can''t see the door anymore.']); // because of lacking loThreshold
-      RunCommand('south', ['(through the doorway)', 'Back Room', 'Nothing is particularly noteworthy about this second location. To the north is a doorway.']);
-      RunCommand('move me to door', ['On the door (installed in the doorway, between a room and a back room)', 'The door has two sides. On the front, the door is varnished. On the back, the door has a big scratch, as if made by a wolf. The door is open.', 'The door is installed in the unnotable doorway. The doorway has no notable features. To the north is a room. To the south is a back room.']);
+      RunCommand('move me to door', ['(on the door)', 'You can''t see the door anymore.']); // because of lacking loThreshold
+      RunCommand('south', ['(through the doorway)', 'Back Room', 'Nothing is particularly noteworthy about this second location. To the north is a door.']);
+      RunCommand('move me to door', ['(on the door)', 'On the door (installed in the doorway, between a room and a back room)', 'The door has two sides. On the front, the door is varnished. On the back, the door has a big scratch, as if made by a wolf. The door is open.', 'The door is installed in the unnotable doorway. The doorway has no notable features. To the north is a room. To the south is a back room.']);
       RunCommand('find boogie', ['I can''t find anything like a "boogie" here.']);
       RunCommand('find ground', ['The floor is below.']);
       RunCommand('out', ['Doorway between a room and a back room', 'The doorway has no notable features. To the north is a room. To the south is a back room.']);
-      RunCommand('move me to door', ['On the door (installed in the doorway, between a room and a back room)', 'The door has two sides. On the front, the door is varnished. On the back, the door has a big scratch, as if made by a wolf. The door is open.', 'The door is installed in the unnotable doorway. The doorway has no notable features. To the north is a room. To the south is a back room.']);
+      RunCommand('move me to door', ['(on the door)', 'On the door (installed in the doorway, between a room and a back room)', 'The door has two sides. On the front, the door is varnished. On the back, the door has a big scratch, as if made by a wolf. The door is open.', 'The door is installed in the unnotable doorway. The doorway has no notable features. To the north is a room. To the south is a back room.']);
       RunCommand('down', ['Doorway between a room and a back room', 'The doorway has no notable features. To the north is a room. To the south is a back room.']);
-      RunCommand('move me to door', ['On the door (installed in the doorway, between a room and a back room)', 'The door has two sides. On the front, the door is varnished. On the back, the door has a big scratch, as if made by a wolf. The door is open.', 'The door is installed in the unnotable doorway. The doorway has no notable features. To the north is a room. To the south is a back room.']);
+      RunCommand('move me to door', ['(on the door)', 'On the door (installed in the doorway, between a room and a back room)', 'The door has two sides. On the front, the door is varnished. On the back, the door has a big scratch, as if made by a wolf. The door is open.', 'The door is installed in the unnotable doorway. The doorway has no notable features. To the north is a room. To the south is a back room.']);
       RunCommand('look out', ['To the north is a room. To the south is a back room.']);
-      RunCommand('south', ['Back Room', 'Nothing is particularly noteworthy about this second location. To the north is a doorway.']);
-      RunCommand('move into doorway', ['(through the doorway)', 'Room', 'Nothing is particularly noteworthy about this location. To the south is a doorway. To the north is the land.']);
+      RunCommand('south', ['Back Room', 'Nothing is particularly noteworthy about this second location. To the north is a door.']);
+      RunCommand('move into doorway', ['(through the doorway)', 'Room', 'Nothing is particularly noteworthy about this location. To the south is a door. To the north is the land.']);
       RunCommand('say "hello"', ['You say "hello".']);
       RunCommand('say ''hello''', ['You say "hello".']);
       RunCommand('say "he\llo"', ['You say "he\llo".']);

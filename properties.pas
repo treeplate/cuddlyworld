@@ -28,6 +28,7 @@ const // keywords used as property names in "debug make" commands
    pnMaxSize = 'maxSize';
    pnName = 'name';
    pnOpened = 'opened';
+   pnOpenable = 'openable';
    pnPassageWay = 'passageWay';
    pnPattern = 'pattern';
    pnPileClass = 'pileClass';

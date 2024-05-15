@@ -269,13 +269,20 @@ begin
 end;
 
 function TAirLocation.GetBelow(): TAtom;
+var
+   Landmark: TDirectionalLandmark;
 begin
-   Assert(Length(FDirectionalLandmarks[cdDown]) > 0);
-   Assert(loPermissibleNavigationTarget in FDirectionalLandmarks[cdDown][0].Options);
-   Result := FDirectionalLandmarks[cdDown][0].Atom.GetSurface();
-   if (not Assigned(Result)) then
-      Result := FDirectionalLandmarks[cdDown][0].Atom;
-   Assert(Assigned(Result));
+   for Landmark in FLandmarks do
+   begin
+      if ((Landmark.Direction = cdDown) and (loPermissibleNavigationTarget in Landmark.Options)) then
+      begin
+         Result := Landmark.Atom.GetSurface();
+         if (not Assigned(Result)) then
+            Result := Landmark.Atom;
+         Exit;
+      end;
+   end;
+   Assert(False);
 end;
 
 

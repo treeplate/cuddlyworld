@@ -203,6 +203,7 @@ begin
              avPut: Action.PutSubject.Free();
              avMove: Action.MoveSubject.Free();
              avPush: Action.PushSubject.Free();
+             avRelocate: Action.RelocateSubject.Free();
              avRemove: Action.RemoveSubject.Free();
              avPress: Action.PressSubject.Free();
              avShake: Action.ShakeSubject.Free();
@@ -461,8 +462,9 @@ begin
     avUseTransportation: Player.DoNavigation(Action.UseTransportationInstruction);
     avTake: Player.DoTake(Action.TakeSubject);
     avPut: Player.DoPut(Action.PutSubject, Action.PutTarget, Action.PutPosition, Action.PutCare);
-    avMove: Player.DoMove(Action.MoveSubject, Action.MoveTarget, Action.MoveAmbiguous, Action.MovePosition);
-    avPush: Player.DoPush(Action.PushSubject, Action.PushDirection);
+    avRelocate: Player.DoRelocate(Action.RelocateSubject);
+    avMove: Player.DoMove(Action.MoveSubject, Action.MoveTarget, Action.MovePosition);
+    avPush: Player.DoPushDirectional(Action.PushSubject, Action.PushDirection);
     avRemove: Player.DoRemove(Action.RemoveSubject, Action.RemoveFromPosition, Action.RemoveFromObject);
     avPress: Player.DoPress(Action.PressSubject);
     avShake: Player.DoShake(Action.ShakeSubject);

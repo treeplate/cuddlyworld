@@ -114,18 +114,18 @@ const
    kNecessaryOptions = [loAutoDescribe, loPermissibleNavigationTarget];
 var
    Direction: TCardinalDirection;
-   Index: Cardinal;
+   Landmark: TDirectionalLandmark;
    List: TAtomList;
 begin
    Assert(Context <> Self);
    List := TAtomList.Create([slDropDuplicates]);
    for Direction in cdOrderedCardinalDirections do
-      if (Length(FDirectionalLandmarks[Direction]) > 0) then
-         for Index := Low(FDirectionalLandmarks[Direction]) to High(FDirectionalLandmarks[Direction]) do
+      for Landmark in FLandmarks do // this is rather expensive, we're doing 12 loops over the landmarks
+         if (Landmark.Direction = Direction) then
          begin
-            Assert(Context <> FDirectionalLandmarks[Direction][Index].Atom);
-            if (FDirectionalLandmarks[Direction][Index].Options * kNecessaryOptions = kNecessaryOptions) then
-               List.AppendItem(FDirectionalLandmarks[Direction][Index].Atom);
+            Assert(Context <> Landmark.Atom);
+            if (Landmark.Options * kNecessaryOptions = kNecessaryOptions) then
+               List.AppendItem(Landmark.Atom);
          end;
    if (List.Length >= 2) then
       Result := 'between ' + List.GetDefiniteString(Perspective, 'and')
@@ -229,11 +229,12 @@ end;
 
 procedure TVerticalPathLocation.GetNearbyThingsByClass(List: TThingList; FromOutside: Boolean; Filter: TThingClass);
 var
-   Direction: TCardinalDirection;
+   Landmark: TDirectionalLandmark;
 begin
-   for Direction := Low(FDirectionalLandmarks) to High(FDirectionalLandmarks) do
-      if (Length(FDirectionalLandmarks[Direction]) > 0) then
-         FDirectionalLandmarks[Direction][0].Atom.GetNearbyThingsByClass(List, True, Filter);
+   // The original implementation of this only took the first landmark in each direction.
+   // This was changed when landmarks were simplified. We may need to bring that logic back.
+   for Landmark in FLandmarks do
+      Landmark.Atom.GetNearbyThingsByClass(List, True, Filter);
    inherited;
 end;
 

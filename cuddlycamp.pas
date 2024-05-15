@@ -69,9 +69,9 @@ begin
    Tunnel.Add(TLocationRepresentative.Create('many tunnel turns', 'many? tunnel? (turn/turns twist/twists)@', 'The tunnel twists in many directions, leading to a cave when going generally westward, and leading to the end of the tunnel in a northern direction.'), tpPartOfImplicit);
    
    TunnelEnd := TGroundLocation.Create('Tunnel End', 'the tunnel end', 'a tunnel end', 'The tunnel end room has white walls.', CreateEarthSurface());
-   Tunnel.Add(TStructure.Create('north wall', '(white (north northern)@)* wall/walls', 'The northern wall of the tunnel end room is white.', 'There does not seem to be any way to attach things to the wall.'), tpPartOfImplicit);
-   Tunnel.Add(TStructure.Create('east wall', '(white (east eastern)@)* wall/walls', 'The eastern wall of the tunnel end room is white.', 'There does not seem to be any way to attach things to the wall.'), tpPartOfImplicit);
-   Tunnel.Add(TStructure.Create('west wall', '(white (west western)@)* wall/walls', 'The western wall of the tunnel end room is white.', 'There does not seem to be any way to attach things to the wall.'), tpPartOfImplicit);
+   TunnelEnd.Add(TStructure.Create('north wall', '(white (north northern)@)* wall/walls', 'The northern wall of the tunnel end room is white.', 'There does not seem to be any way to attach things to the wall.'), tpPartOfImplicit);
+   TunnelEnd.Add(TStructure.Create('east wall', '(white (east eastern)@)* wall/walls', 'The eastern wall of the tunnel end room is white.', 'There does not seem to be any way to attach things to the wall.'), tpPartOfImplicit);
+   TunnelEnd.Add(TStructure.Create('west wall', '(white (west western)@)* wall/walls', 'The western wall of the tunnel end room is white.', 'There does not seem to be any way to attach things to the wall.'), tpPartOfImplicit);
 
    Bedroom := TGroundLocation.Create('Bedroom', 'the bedroom', 'a bedroom', 'The bedroom is a large room. On the ceiling are some stars.', CreateStoneSurface());
    Bed := TDescribedPhysicalThing.Create('bed', 'bed/beds', 'The bed is medium-sized bed.', tmPonderous, tsBig);

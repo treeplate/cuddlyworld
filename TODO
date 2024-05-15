@@ -170,6 +170,8 @@ PLAYER INTERACTION
  + "push all to Hixie" (where Hixie is in the room) pushes Hixie to Hixie (and starts asserting all over the place).
  + If you're in a doorway, you don't get notified of people going through the door. (Nor do they get told about you.)
  + "climb stairs" doesn't check if you're too big to fit through the opening the way that "up" and "down" do check.
+ + "push table down" checks if the table is too big to go through the opening, but "put table on stairs" does not.
+ + "enter bag of holding" works but "enter sack" does not, even if the bag is in the sack. (extra difficult because you can't exit at all)
  + "take <other player>" tells the other player "Hixie moved you so that _it_ is carried by Hixie" instead of using the right pronoun (emphasis added).
 
 THINGS
@@ -192,6 +194,7 @@ THINGS
  + fumble tells other players both about the fumble and then about the move to the ground.
  + you can probably push something out of a hole even if you can't push it into a hole; see "// xxx" in player.pas DoRemove
  + when you're being carried by someone and you drop something, it ends up inside them. It should drop out of them.
+ + dropping something when in the sky might not work at all these days?
  + when you drop something from the sky onto a ground surface that's full, it should drop onto something (the biggest non-full thing in a depth-first search?) on the ground surface
  + taking something with things on it should make the things fall off
  + throwing - "throw MacGuffin north": I don't understand how to "throw".

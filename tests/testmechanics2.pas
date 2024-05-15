@@ -60,7 +60,7 @@ procedure TestMechanics2();
       { and/then/etc tests }
 
       // We start on the East side
-      RunCommand('look', ['East Room', 'This is the room on the east side of the door frame. To the west is a door frame.']);
+      RunCommand('look', ['East Room', 'This is the room on the east side of the door frame. To the west is a door.']);
       RunCommand('west', ['You cannot go west. The door is closed.']);
       RunCommand('enter door', ['You cannot enter the door. The door is closed.']);
       RunCommand('enter door frame', ['You cannot enter the door frame. The door is closed.']);
@@ -70,6 +70,7 @@ procedure TestMechanics2();
       RunCommand('find door frame', ['The door frame is to the west.']);
       RunCommand('find door', ['The door is to the west, installed in the door frame.']);
       RunCommand('take door', ['Taken.']);
+      RunCommand('look', ['East Room', 'This is the room on the east side of the door frame. To the west is a door frame.']);
       RunCommand('take door frame', ['The door frame cannot be moved.']);
       RunCommand('enter door', ['That would prove rather challenging given where the door is relative to yourself.']);
 
@@ -105,7 +106,7 @@ procedure TestMechanics2();
       RunCommand('find door', ['The door is to the east, installed in the door frame.']);
 
       // ...and we go back to the East side
-      RunCommand('enter door', ['(through the door frame)', 'East Room', 'This is the room on the east side of the door frame. To the west is a door frame.']);
+      RunCommand('enter door', ['(through the door frame)', 'East Room', 'This is the room on the east side of the door frame. To the west is a door.']);
       RunCommand('look at side', ['Which side do you mean, the front side of the door or the back side of the door?']);
       RunCommand('close door', ['Closed.']);
       RunCommand('look at side', ['The front side of the door is flat.']);
@@ -113,7 +114,7 @@ procedure TestMechanics2();
       RunCommand('move door west', ['The door is installed in the door frame. It is not clear how to move it.']);
 
       // Back West.
-      RunCommand('open door and go west', ['Opened.', '', '(through the door frame)', 'West Room', 'This is the room on the west side of the door frame. To the east is a door frame.']);
+      RunCommand('open door and go west', ['Opened.', '', '(through the door frame)', 'West Room', 'This is the room on the west side of the door frame. To the east is a door.']);
       RunCommand('move door', ['You shake the door.']);
       RunCommand('close', ['(the door)', 'Closed.']);
       RunCommand('put bag on door frame', ['You can''t put something on a door frame. Did you mean on the door?']);
@@ -126,12 +127,12 @@ procedure TestMechanics2();
       RunCommand('put bag in door', ['(first taking the bag of holding)', 'Taken.', 'It is not clear how to get inside the door.']);
       RunCommand('put bag on door', ['Placed on the door.']);
       // XXX add a test that if you remove the door and try to put something on the door frame it doesn't crash
-      RunCommand('enter door frame', ['(through the door frame)', 'The bag of holding falls onto the floor as you pass through the door, barely missing you on its way down.', 'East Room', 'This is the room on the east side of the door frame. To the west is a door frame.']);
-      RunCommand('move me to bag', ['In the bag of holding (between the East room and the West room)', 'The bag has the name "Tester" embroidered around its rim.', 'The bag of holding is on the flat ground. To the east is the East room. To the west is the West room.']);
+      RunCommand('enter door frame', ['(through the door frame)', 'The bag of holding falls onto the floor as you pass through the door, barely missing you on its way down.', 'East Room', 'This is the room on the east side of the door frame. To the west is a door.']);
+      RunCommand('move me to bag', ['(in the bag of holding)', 'In the bag of holding (between the East room and the West room)', 'The bag has the name "Tester" embroidered around its rim.', 'The bag of holding is on the flat ground. To the east is the East room. To the west is the West room.']);
       RunCommand('exit', ['Door frame between the East room and the West room', 'The door frame is a frame around where a door would go. To the east is the East room. To the west is the West room.', 'There is a bag of holding here.']);
       RunCommand('close', ['(the door)', 'The door cannot be closed; the bag of holding and you are in the way.']);
       RunCommand('exit', ['You can''t go out from here.']);
-      RunCommand('east', ['East Room', 'This is the room on the east side of the door frame. To the west is a door frame.']);
+      RunCommand('east', ['East Room', 'This is the room on the east side of the door frame. To the west is a door.']);
       // XXX RunCommand('find bag', ['The bag of holding is between the East room and the West room.']);
       RunCommand('find bag', ['The bag of holding is to the west, on the flat ground.']);
       RunCommand('push bag west', ['Pushed.']);

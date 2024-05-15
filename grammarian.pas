@@ -60,7 +60,6 @@ type
 const
    tpEverything = [Low(TThingPosition) .. High(TThingPosition)];
    tpAutoDescribe = [tpSurfaceOpening, tpAt, tpPlantedIn]; { things that should be included in the main description of an object }
-   tpAutoDescribeDirectional = [tpDirectionalOpening, tpDirectionalPath]; { things that should be included in the main description of a location, with a direction (these also have to be part of the FDirectionalLandmarks arrays, and not tpContained in something else) }
    tpScenery = [tpPartOfImplicit, tpAmbiguousPartOfImplicit, tpAroundImplicit, tpAtImplicit, tpOnImplicit, tpDirectionalOpening, tpDirectionalPath, tpSurfaceOpening, tpAt]; { conceptually these children essentially _are_ the parent, or at least part of it, so you can't e.g. look under them }
    tpObtrusive = [tpPlantedInImplicit, tpOn, tpPlantedIn, tpIn, tpEmbedded, tpCarried]; { used by GetObtrusiveObstacles(); these are things that can be shaken loose or that can block doors }
    tpNoticeable = [tpAt, tpOn]; { things that one might comment on, e.g. when walking past them }
@@ -134,7 +133,7 @@ function IsAre(const IsPlural: Boolean): UTF8String; inline;
 implementation
 
 {$IFOPT C+}
-uses typedump;
+uses typedump, debug;
 {$ENDIF}
 
 procedure Fail(Message: UTF8String);

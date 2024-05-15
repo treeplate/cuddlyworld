@@ -520,8 +520,8 @@ begin
    TestMechanics8.TestMechanics8();
    TestMechanics7.TestMechanics7();
    TestMechanics6.TestMechanics6();
-   TestMechanics4.TestMechanics4();
    TestMechanics5.TestMechanics5();
+   TestMechanics4.TestMechanics4();
    TestMechanics3.TestMechanics3();
    TestMechanics2.TestMechanics2();
    TestMechanics1.TestMechanics1();

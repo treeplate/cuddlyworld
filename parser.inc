@@ -1025,23 +1025,23 @@
             Result := True;
          end
          else
-         if (not GetThings(Action.MoveSubject, [aisSurroundings, aisSelf], [eckIn, eckOn], 'move')) then
+         if (not GetThings(Action.RelocateSubject, [aisSurroundings, aisSelf], [eckIn, eckOn], 'move')) then
          begin
-            // Action.MoveSubject is not valid here, but that doesn't matter as we immediately throw.
+            // Action.RelocateSubject is not valid here, but that doesn't matter as we immediately throw.
             Fail('I can''t see any "' + OriginalTokens[CurrentToken] + '" here.');
+         end
+         else
+         if (CanEnd()) then
+         begin
+            Action.Verb := avRelocate;
+            // Action.RelocateSubject is set above
+            Result := True;
          end
          else
          begin
             Action.Verb := avMove;
-            // Action.MoveSubject is set above
-            Action.MoveAmbiguous := False; // we must Fail, set the MovePosition, or reset MoveAmbiguous to True before exitting this
+            Assert(@Action.MoveSubject = @Action.RelocateSubject); // Action.RelocateSubject is set above
             Result := True;
-            if (CanEnd()) then
-            begin
-               Action.MoveTarget := nil;
-               Action.MovePosition := tpOn;
-            end
-            else
             if (GetPrepositionThing('onto', [], 'move things', Action.MoveTarget) or
                 GetPrepositionThing('over', [], 'move things', Action.MoveTarget) or
                 GetCompoundPrepositionThing(['on', 'to'], [], 'move things', 'onto', Action.MoveTarget) or
@@ -1065,7 +1065,7 @@
             else
             if (GetPrepositionThing('to', [], 'move things', Action.MoveTarget)) then
             begin
-               Action.MoveAmbiguous := True;
+               Action.MovePosition := tpAt;
                if (not CanEnd()) then
                   Fail('I don''t understand how to move things to other things "' + OriginalTokens[CurrentToken] + '".');
             end
@@ -1173,7 +1173,6 @@
          begin
             Assert(@Action.PushSubject = @Action.MoveSubject);
             Action.Verb := avMove;
-            Action.MoveAmbiguous := False;
             Action.MovePosition := tpOn;
             if (not CanEnd()) then
                Fail('I don''t understand how to push things onto other things "' + OriginalTokens[CurrentToken] + '".');
@@ -1187,7 +1186,6 @@
          begin
             Assert(@Action.PushSubject = @Action.MoveSubject);
             Action.Verb := avMove;
-            Action.MoveAmbiguous := False;
             Action.MovePosition := tpIn;
             if (not CanEnd()) then
                Fail('I don''t understand how to push things into other things "' + OriginalTokens[CurrentToken] + '".');
@@ -1197,7 +1195,7 @@
          begin
             Assert(@Action.PushSubject = @Action.MoveSubject);
             Action.Verb := avMove;
-            Action.MoveAmbiguous := True;
+            Action.MovePosition := tpAt;
             if (not CanEnd()) then
                Fail('I don''t understand how to push things to other things "' + OriginalTokens[CurrentToken] + '".');
          end

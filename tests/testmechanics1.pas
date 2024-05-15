@@ -230,12 +230,12 @@ procedure TestMechanics1();
       Thing2.Add(TDescribedPhysicalThing.Create('apricot', '(orange (apricot/apricots fruit)@)&', 'The apricot is orange.', tmLight, tsSmall), tpOn);
       Thing2.Add(TDescribedPhysicalThing.Create('banana', '(yellow (banana/bananas fruit)@)&', 'The banana is yellow.', tmLight, tsSmall), tpOn);
 
-      Thing2 := TContainer.Create('box', '((berry fruit)@ (box/boxes container/containers)@)&', 'The box is intended to hold berries.', tmLight, tsSmall);
+      Thing2 := TContainer.Create('box', '((berry fruit)@ (box/boxes container/containers)@)&', 'The box is intended to hold berries.', True {Open}, False {not Openable}, tmLight, tsSmall);
       Thing.Add(Thing2, tpOn);
       Thing2.Add(TDescribedPhysicalThing.Create('strawberries', '(red (strawberry/strawberries berry/berries fruit)@)&', 'The strawberries are red.', tmLight, tsSmall), tpIn);
       Thing2.Add(TDescribedPhysicalThing.Create('blueberries', '(blue (blueberry/blueberries berry/berries fruit)@)&', 'The blueberries are blue.', tmLight, tsSmall), tpIn);
 
-      Thing2 := TContainer.Create('crate', '(fruit (crate/crates container/containers)@)&', 'The crate is intended to hold fruit.', tmLight, tsSmall);
+      Thing2 := TContainer.Create('crate', '(fruit (crate/crates container/containers)@)&', 'The crate is intended to hold fruit.', True {Open}, False {not Openable}, tmLight, tsSmall);
       Thing.Add(Thing2, tpOn);
       Thing2.Add(TDescribedPhysicalThing.Create('pineapple', '((prickly brown)# (pineapple/pineapples fruit)@)&', 'The pineapple is brown and prickly.', tmLight, tsSmall), tpIn);
       Thing2.Add(TDescribedPhysicalThing.Create('kiwi', '((furry brown)# (kiwi/kiwis fruit)@)&', 'The kiwi is brown and furry.', tmLight, tsSmall), tpIn);
@@ -463,11 +463,11 @@ procedure TestMechanics1();
       Proxy.ExpectString('Placed on the hole.');
       Proxy.ExpectString('The spade falls into the hole.');
       Proxy.ExpectString('');
-      Proxy.ExpectString('Moved onto the hole.');
+      Proxy.ExpectString('Pushed.');
       Proxy.ExpectString('The MacGuffin falls into the hole.');
       Proxy.ExpectString('');
       Proxy.ExpectString('(the pile of leaves)');
-      Proxy.ExpectString('Moved onto the hole.');
+      Proxy.ExpectString('Pushed.');
       Proxy.ExpectString('');
       Proxy.SkipLine();
       Proxy.ExpectSubstring('On the hole is a pile of leaves'); { examine hole }
@@ -573,11 +573,13 @@ procedure TestMechanics1();
       Proxy.ExpectSubstring('balloon: Taken.');
       TestWorld.Perform('take three balloons', TestPlayer);
 
-// disabled because there's a bug: 'drop any x' picks at all xes, not just those being held if there some being held
-//         Proxy.ExpectSubstring('(');
-//         Proxy.ExpectSubstring('pink balloon: Dropped.');
-//         Proxy.ExpectSubstring('grey balloon: Dropped.');
-//         TestWorld.Perform('drop any two balloons', TestPlayer);
+      // disabled because there's a bug: 'drop any x' picks at all xes, not just those being held if there some being held
+      // also consider cases like "take a bag" when you're already holding one (it shouldn't take that one) (or even disambiguate on it?)
+      // This is in the TODO file, search for "drop any two balloons".
+      // Proxy.ExpectSubstring('(');
+      // Proxy.ExpectSubstring('pink balloon: Dropped.');
+      // Proxy.ExpectSubstring('grey balloon: Dropped.');
+      // TestWorld.Perform('drop any two balloons', TestPlayer);
 
       Proxy.ExpectString('About the two balloons... I count 10, not two.');
       TestWorld.Perform('drop the two balloons', TestPlayer);
@@ -655,16 +657,16 @@ procedure TestMechanics1();
       { overfill test }
       Proxy.Test('Overfilling');
       Proxy.ExpectString('(the pile of leaves)');
-      Proxy.ExpectString('Moved onto the ground.');
+      Proxy.ExpectString('Pushed.');
       Proxy.ExpectString('');
       Proxy.ExpectNoSubstring('overflowing');
       Proxy.WaitUntilString('  A spade.');
       Proxy.WaitUntilString('');
       Proxy.ExpectString('The hole is in the ground.');
       Proxy.ExpectString('');
-      Proxy.ExpectSubstring('Moved');
+      Proxy.ExpectSubstring('Pushed');
       Proxy.ExpectSubstring('falls');
-      Proxy.ExpectSubstring('Moved');
+      Proxy.ExpectSubstring('Pushed');
       Proxy.ExpectSubstring('falls');
       Proxy.WaitUntilString(''); { finish moving balloons }
       Proxy.ExpectSubstring('overflowing');
@@ -674,19 +676,20 @@ procedure TestMechanics1();
       Proxy.ExpectSubstring('balloon');
       Proxy.WaitUntilString('  A spade.');
       Proxy.WaitUntilString('');
-      Proxy.ExpectSubstring('Moved');
+      Proxy.ExpectSubstring('Pushed.');
       Proxy.ExpectString('');
       Proxy.ExpectString('There is a hole under the pile of earth.');
       Proxy.ExpectString('');
       Proxy.ExpectString('(off the hole)');
-      Proxy.ExpectString('Moved onto the ground.');
+      Proxy.ExpectString('Pushed.');
       Proxy.ExpectString('');
       Proxy.ExpectString('(out of the hole)');
-      Proxy.ExpectString('Moved onto the ground.');
+      Proxy.ExpectString('(by taking the large pink balloon)');
+      Proxy.ExpectString('Taken.');
       Proxy.ExpectString('');
       Proxy.ExpectString('Taken.');
       Proxy.ExpectString('');
-      Proxy.ExpectString('Moved onto the hole.');
+      Proxy.ExpectString('Pushed.');
       Proxy.ExpectString('You fill the hole with the pile of earth.');
       Proxy.ExpectString('');
       Proxy.ExpectString('I can''t find anything like a "hole" here.');
@@ -736,6 +739,9 @@ procedure TestMechanics1();
       Proxy.SkipEverything();
       TestWorld.Perform('inventory; look', TestPlayer);
       Proxy.StopSkipping();
+
+      Proxy.ExpectString('Dropped.');
+      TestWorld.Perform('drop balloon', TestPlayer);
 
       Proxy.ExpectString('Pile of leaves: The pile of leaves slips through your fingers.');
       Proxy.ExpectString('Large pink balloon: Taken.');
@@ -1140,12 +1146,12 @@ procedure TestMechanics1();
       Proxy.ExpectString('Which earth do you want to find, the ground or the pile of earth? Let''s focus on one at at time.');
       TestWorld.Perform('find earth', TestPlayer);
 
-      Proxy.ExpectString('Wooden spoon: Moved into the hole.');
-      Proxy.ExpectString('Plastic spoon: Moved into the hole.');
-      Proxy.ExpectString('Stainless steel spoon: Moved into the hole.');
-      Proxy.ExpectString('Silver spoon: Moved into the hole.');
+      Proxy.ExpectString('Wooden spoon: Pushed.');
+      Proxy.ExpectString('Plastic spoon: Pushed.');
+      Proxy.ExpectString('Stainless steel spoon: Pushed.');
+      Proxy.ExpectString('Silver spoon: Pushed.');
       Proxy.ExpectString('');
-      Proxy.ExpectString('Moved into the hole.');
+      Proxy.ExpectString('Pushed.');
       Proxy.ExpectString('You fill the hole with the pile of earth.');
       TestWorld.Perform('push all the spoons into the hole, then push the pile of earth into the hole', TestPlayer);
 
@@ -1268,7 +1274,7 @@ procedure TestMechanics1();
       Proxy.ExpectString('You shake the plastic spoon.');
       TestWorld.Perform('shake plastic spoon in pile and from a spoon', TestPlayer);
 
-      Proxy.ExpectString('Moved into the hole.'); // XXX
+      Proxy.ExpectString('Pushed.');
       Proxy.ExpectString('You fill the hole with the pile of earth.');
       TestWorld.Perform('push the pile of earth into the hole', TestPlayer);
 
@@ -1588,9 +1594,9 @@ procedure TestMechanics1();
       Proxy.ExpectString('Taken.');
       Proxy.ExpectString('With much effort, you dig a huge hole.');
       Proxy.ExpectString('');
-      Proxy.ExpectString('Moved into the hole.');
+      Proxy.ExpectString('Pushed.');
       Proxy.ExpectString('');
-      Proxy.ExpectString('Moved into the hole.');
+      Proxy.ExpectString('Pushed.');
       Proxy.ExpectString('Zeno barely avoids being buried alive by you.');
       Proxy.ExpectString('Zeno arrives from the hole inwards.');
       Proxy.ExpectString('You fill the hole with the pile of earth.');
