@@ -869,7 +869,7 @@ class function TScenery.CreateFromProperties(Properties: TTextStreamProperties):
 var
    Name: UTF8String;
    Pattern: UTF8String;
-   Description, UnderDescriptionValue, FindDescriptionValue, CannotMoveExcuseValue: UTF8String;
+   Description, UnderDescriptionValue, FindDescriptionValue, CannotMoveExcuseValue, CannotPlaceExcuseValue: UTF8String;
    MassValue: TThingMass = tmLudicrous;
    SizeValue: TThingSize = tsLudicrous;
    OpenedValue: Boolean = False;
@@ -883,6 +883,7 @@ begin
           Properties.HandleUniqueStringProperty(pnUnderDescription, UnderDescriptionValue) and
           Properties.HandleUniqueStringProperty(pnFindDescription, FindDescriptionValue) and
           Properties.HandleUniqueStringProperty(pnCannotMoveExcuse, CannotMoveExcuseValue) and
+          Properties.HandleUniqueStringProperty(pnCannotPlaceExcuse, CannotPlaceExcuseValue) and
           Properties.HandleUniqueBooleanProperty(pnOpened, OpenedValue) and
           Properties.specialize HandleUniqueEnumProperty<TThingMass>(pnMass, MassValue) and
           Properties.specialize HandleUniqueEnumProperty<TThingSize>(pnSize, SizeValue) and
@@ -897,6 +898,8 @@ begin
       Result.FindDescription := FindDescriptionValue;
    if (Properties.Seen(pnCannotMoveExcuse)) then
       Result.CannotMoveExcuse := CannotMoveExcuseValue;
+   if (Properties.Seen(pnCannotPlaceExcuse)) then
+      Result.CannotPlaceExcuse := CannotPlaceExcuseValue;
    if (Properties.Seen(pnOpened)) then
       Result.Opened := OpenedValue;
    StreamedChildren.Apply(Result);
@@ -910,6 +913,7 @@ begin
    Describer.AddProperty(pnUnderDescription, ptString);
    Describer.AddProperty(pnFindDescription, ptString);
    Describer.AddProperty(pnCannotMoveExcuse, ptString);
+   Describer.AddProperty(pnCannotPlaceExcuse, ptString);
    Describer.AddProperty(pnOpened, ptBoolean);
    Describer.AddProperty(pnMass, ptMass);
    Describer.AddProperty(pnSize, ptSize);

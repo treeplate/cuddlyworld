@@ -52,39 +52,42 @@ end;
 
 class function SUBCLASS.CreateFromProperties(Properties: TTextStreamProperties): SUBCLASS;
 var
-   StreamedLandmarks: TStreamedLandmarks;
 {$IF SUPERCLASS=TNamedLocation}
    Name: UTF8String;
    DefiniteName, IndefiniteName, Description: UTF8String;
+{$ELSEIF SUPERCLASS=TProxyLocation}
+   Source: TThing;
+   Position: TThingPosition;
+{$ELSE}
+ {$FATAL Unknown SUPERCLASS value.}
+{$ENDIF}
    Ground: TThing;
+   StreamedLandmarks: TStreamedLandmarks;
    StreamedChildren: TStreamedChildren;
 begin
    while (not Properties.Done) do
    begin
-      if (Properties.HandleUniqueStringProperty(pnName, Name) and
+      if (
+{$IF SUPERCLASS=TNamedLocation}
+          Properties.HandleUniqueStringProperty(pnName, Name) and
           Properties.HandleUniqueStringProperty(pnDefiniteName, DefiniteName) and
           Properties.HandleUniqueStringProperty(pnIndefiniteName, IndefiniteName) and
           Properties.HandleUniqueStringProperty(pnDescription, Description) and
+{$ELSEIF SUPERCLASS=TProxyLocation}
+          TThing.HandleUniqueThingProperty(Properties, pnSource, Source, TThing) and {BOGUS Hint: Local variable "Source" does not seem to be initialized}
+          Properties.specialize HandleUniqueEnumProperty<TThingPosition>(pnPosition, Position) and {BOGUS Hint: Local variable "Position" does not seem to be initialized}
+{$ELSE}
+ {$FATAL Unknown SUPERCLASS value.}
+{$ENDIF}
           TThing.HandleUniqueThingProperty(Properties, pnGround, Ground, TThing) and {BOGUS Hint: Local variable "Ground" does not seem to be initialized}
           HandleLandmarkProperties(Properties, StreamedLandmarks) and
           HandleChildProperties(Properties, StreamedChildren)) then
        Properties.FailUnknownProperty();
    end;
+{$IF SUPERCLASS=TNamedLocation}
    Properties.EnsureSeen([pnName, pnDefiniteName, pnIndefiniteName, pnDescription, pnGround]);
    Result := Create(Name, DefiniteName, IndefiniteName, Description, Ground);
 {$ELSEIF SUPERCLASS=TProxyLocation}
-   Source: TThing;
-   Position: TThingPosition;
-   Ground: TThing;
-begin
-   while (not Properties.Done) do
-   begin
-      if (TThing.HandleUniqueThingProperty(Properties, pnSource, Source, TThing) and {BOGUS Hint: Local variable "Source" does not seem to be initialized}
-          Properties.specialize HandleUniqueEnumProperty<TThingPosition>(pnPosition, Position) and {BOGUS Hint: Local variable "Position" does not seem to be initialized}
-          TThing.HandleUniqueThingProperty(Properties, pnGround, Ground, TThing) and {BOGUS Hint: Local variable "Ground" does not seem to be initialized}
-          HandleLandmarkProperties(Properties, StreamedLandmarks)) then
-         Properties.FailUnknownProperty();
-   end;
    Properties.EnsureSeen([pnSource, pnPosition, pnGround]);
    Result := Create(Source, Position, Ground);
 {$ELSE}
