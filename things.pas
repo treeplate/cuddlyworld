@@ -243,6 +243,7 @@ type
    TTree = class(TScenery) // @RegisterStorableClass
    end;
 
+   // Convenience constructor for TScenery that always has a CannotPlaceExcuse.
    TStructure = class(TScenery) // @RegisterStorableClass
     public
       constructor Create(Name: UTF8String; Pattern: UTF8String; Description, ACannotPlaceExcuse: UTF8String);

@@ -362,7 +362,7 @@ procedure TWorld.ExecuteAction(const Action: TAction; Player: TPlayer);
                Stream.ExpectPunctuation(',');
                LocationB := Stream.specialize GetObject<TAtom>();
                Stream.ExpectPunctuation(',');
-               Options := Stream.specialize GetSet<TLandmarkOptions>();
+               Options := Stream.specialize GetSet<TLandmarkOptions>(); // might be empty!
                if (Stream.PeekPunctuation() = ',') then
                begin
                   Stream.ExpectPunctuation(',');

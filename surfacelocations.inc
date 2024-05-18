@@ -57,6 +57,7 @@ var
    Name: UTF8String;
    DefiniteName, IndefiniteName, Description: UTF8String;
    Ground: TThing;
+   StreamedChildren: TStreamedChildren;
 begin
    while (not Properties.Done) do
    begin
@@ -65,7 +66,8 @@ begin
           Properties.HandleUniqueStringProperty(pnIndefiniteName, IndefiniteName) and
           Properties.HandleUniqueStringProperty(pnDescription, Description) and
           TThing.HandleUniqueThingProperty(Properties, pnGround, Ground, TThing) and {BOGUS Hint: Local variable "Ground" does not seem to be initialized}
-          HandleLandmarkProperties(Properties, StreamedLandmarks)) then
+          HandleLandmarkProperties(Properties, StreamedLandmarks) and
+          HandleChildProperties(Properties, StreamedChildren)) then
        Properties.FailUnknownProperty();
    end;
    Properties.EnsureSeen([pnName, pnDefiniteName, pnIndefiniteName, pnDescription, pnGround]);
@@ -89,6 +91,7 @@ begin
  {$FATAL Unknown SUPERCLASS value.}
 {$ENDIF}
    StreamedLandmarks.Apply(Result);
+   StreamedChildren.Apply(Result);
 end;
 
 class procedure SUBCLASS.DescribeProperties(Describer: TPropertyDescriber);
@@ -98,16 +101,15 @@ begin
    Describer.AddProperty(pnDefiniteName, ptString);
    Describer.AddProperty(pnIndefiniteName, ptString);
    Describer.AddProperty(pnDescription, ptString);
-   Describer.AddProperty(pnGround, ptThing);
-   Describer.AddProperty(pnLandmark, ptLandmark);
 {$ELSEIF SUPERCLASS=TProxyLocation}
    Describer.AddProperty(pnSource, ptThing);
    Describer.AddProperty(pnPosition, ptThingPosition);
-   Describer.AddProperty(pnGround, ptThing);
-   Describer.AddProperty(pnLandmark, ptLandmark);
 {$ELSE}
  {$FATAL Unknown SUPERCLASS value.}
 {$ENDIF}
+   Describer.AddProperty(pnGround, ptThing);
+   Describer.AddProperty(pnLandmark, ptLandmark);
+   Describer.AddProperty(pnChild, ptChild);
 end;
 
 procedure SUBCLASS.EnumerateChildren(List: TThingList; const PositionFilter: TThingPositionFilter);

@@ -1475,17 +1475,20 @@ class function TThresholdLocation.CreateFromProperties(Properties: TTextStreamPr
 var
    PassageWay, Surface: TThing;
    StreamedLandmarks: TStreamedLandmarks;
+   StreamedChildren: TStreamedChildren;
 begin
    while (not Properties.Done) do
    begin
       if (TThing.HandleUniqueThingProperty(Properties, pnPassageWay, PassageWay, TThing) and {BOGUS Hint: Local variable "PassageWay" does not seem to be initialized}
           TThing.HandleUniqueThingProperty(Properties, pnSurface, Surface, TThing) and {BOGUS Hint: Local variable "Surface" does not seem to be initialized}
-          HandleLandmarkProperties(Properties, StreamedLandmarks)) then
+          HandleLandmarkProperties(Properties, StreamedLandmarks) and
+          HandleChildProperties(Properties, StreamedChildren)) then
        Properties.FailUnknownProperty();
    end;
    Properties.EnsureSeen([pnPassageWay, pnSurface]);
    Result := Create(PassageWay, Surface);
    StreamedLandmarks.Apply(Result);
+   StreamedChildren.Apply(Result);
 end;
 
 class procedure TThresholdLocation.DescribeProperties(Describer: TPropertyDescriber);
@@ -1493,6 +1496,7 @@ begin
    Describer.AddProperty(pnPassageWay, ptThing);
    Describer.AddProperty(pnSurface, ptThing);
    Describer.AddProperty(pnLandmark, ptLandmark);
+   Describer.AddProperty(pnChild, ptChild);
 end;
 
 function TThresholdLocation.GetTitle(Perspective: TAvatar): UTF8String;

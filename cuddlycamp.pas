@@ -55,7 +55,6 @@ begin
 end;
 
 
-
 function InitEden: TWorld;
 var
    World: TCuddlyWorld;

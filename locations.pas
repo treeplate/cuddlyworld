@@ -110,6 +110,7 @@ var
    Name: UTF8String;
    DefiniteName, IndefiniteName, Description: UTF8String;
    StreamedLandmarks: TStreamedLandmarks;
+   StreamedChildren: TStreamedChildren;
 begin
    while (not Properties.Done) do
    begin
@@ -117,12 +118,14 @@ begin
           Properties.HandleUniqueStringProperty(pnDefiniteName, DefiniteName) and
           Properties.HandleUniqueStringProperty(pnIndefiniteName, IndefiniteName) and
           Properties.HandleUniqueStringProperty(pnDescription, Description) and
-          HandleLandmarkProperties(Properties, StreamedLandmarks)) then
+          HandleLandmarkProperties(Properties, StreamedLandmarks) and
+          HandleChildProperties(Properties, StreamedChildren)) then
        Properties.FailUnknownProperty();
    end;
    Properties.EnsureSeen([pnName, pnDefiniteName, pnIndefiniteName, pnDescription]);
    Result := Create(Name, DefiniteName, IndefiniteName, Description);
    StreamedLandmarks.Apply(Result);
+   StreamedChildren.Apply(Result);
 end;
 
 class procedure TNamedLocation.DescribeProperties(Describer: TPropertyDescriber);
@@ -132,6 +135,7 @@ begin
    Describer.AddProperty(pnIndefiniteName, ptString);
    Describer.AddProperty(pnDescription, ptString);
    Describer.AddProperty(pnLandmark, ptLandmark);
+   Describer.AddProperty(pnChild, ptChild);
 end;
 
 function TNamedLocation.GetName(Perspective: TAvatar): UTF8String;
@@ -179,17 +183,20 @@ var
    Source: TThing;
    Position: TThingPosition;
    StreamedLandmarks: TStreamedLandmarks;
+   StreamedChildren: TStreamedChildren;
 begin
    while (not Properties.Done) do
    begin
       if (TThing.HandleUniqueThingProperty(Properties, pnSource, Source, TThing) and {BOGUS Hint: Local variable "Source" does not seem to be initialized}
           Properties.specialize HandleUniqueEnumProperty<TThingPosition>(pnPosition, Position) and {BOGUS Hint: Local variable "Position" does not seem to be initialized}
-          HandleLandmarkProperties(Properties, StreamedLandmarks)) then
+          HandleLandmarkProperties(Properties, StreamedLandmarks) and
+          HandleChildProperties(Properties, StreamedChildren)) then
        Properties.FailUnknownProperty();
    end;
    Properties.EnsureSeen([pnSource, pnPosition]);
    Result := Create(Source, Position);
    StreamedLandmarks.Apply(Result);
+   StreamedChildren.Apply(Result);
 end;
 
 class procedure TProxyLocation.DescribeProperties(Describer: TPropertyDescriber);
@@ -197,6 +204,7 @@ begin
    Describer.AddProperty(pnSource, ptThing);
    Describer.AddProperty(pnPosition, ptThingPosition);
    Describer.AddProperty(pnLandmark, ptLandmark);
+   Describer.AddProperty(pnChild, ptChild);
 end;
 
 function TProxyLocation.GetName(Perspective: TAvatar): UTF8String;
