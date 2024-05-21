@@ -1060,6 +1060,7 @@ begin
          Properties.FailUnknownProperty();
    end;
    Properties.EnsureSeen([pnName, pnPattern, pnDescription, pnSize, pnDestination]);
+   Result := Create(Name, Pattern, Description, Destination, SizeValue);
    if (Properties.Seen(pnUnderDescription)) then
       Result.UnderDescription := UnderDescriptionValue;
    if (Properties.Seen(pnFindDescription)) then
@@ -1068,7 +1069,6 @@ begin
       Result.CannotMoveExcuse := CannotMoveExcuseValue;
    if (Properties.Seen(pnOpened)) then
       Result.Opened := OpenedValue;
-   Result := Create(Name, Pattern, Description, Destination, SizeValue);
    StreamedChildren.Apply(Result);
 end;
 

@@ -2412,13 +2412,17 @@ end;
 function TAvatar.Locate(Thing: TThing; Options: TFindThingOptions = [foFindAnywhere]): TSubjectiveInformation;
 var
    Root: TAtom;
-   {$IFOPT C+} Found, {$ENDIF} FromOutside: Boolean;
+   FromOutside: Boolean;
 begin
    Root := GetSurroundingsRoot(FromOutside);
    if (FromOutside) then
       Include(Options, foFromOutside);
-   {$IFOPT C+} Found := {$ENDIF} Root.FindThing(Thing, Self, Options, Result);
-   {$IFOPT C+} Assert(Found); {$ENDIF}
+   if (not Root.FindThing(Thing, Self, Options, Result)) then
+   begin
+      // This can happen when you do "debug location" from inside something that can't see something that wants to find the perspective, e.g. from the hole in a room with a door.
+      Assert(Result.Directions = []);
+      Assert(Result.Reachable = []);
+   end;
 end;
 
 {$IFDEF DEBUG}

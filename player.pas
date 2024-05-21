@@ -293,7 +293,7 @@ begin
       Assert(Things.Length > 0); { there's always at least one thing: us }
       SendMessage('Things:');
       for Thing in Things do
-         SendMessage(' - ' + Thing.GetName(Self) + ': ' + Thing.GetLongDefiniteName(Self));
+         SendMessage(' - ' + Thing.GetName(Self) + ': ' + Thing.GetLongDefiniteName(Self) + WithSpaceIfNotEmpty(ParentheticallyIfNotEmpty(Thing.GetPresenceStatement(Self, psOnThatSpecialThing))));
    finally
       if (Collect) then
          Things.Free();

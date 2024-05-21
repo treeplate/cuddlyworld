@@ -68,7 +68,7 @@ procedure TestMechanics6();
       RunCommand('pick up stairs', ['The stairs are part of the overall structure and quite immovable.']);
       RunCommand('enter stairwell', ['You cannot enter the stairs. The stairs have no discernible entrance.']);
       RunCommand('climb stairs', ['On the stairs (between the Bottom room and the Top room)', 'The stairs have steps.', 'The stairs are between the Bottom room and the Top room.']);
-      RunCommand('debug things', ['Things:', ' - stairs: the stairs', ' - you: you', ' - bag of holding: the embroidered bag of holding labeled Tester', ' - rim: the rim of the bag of holding']);
+      RunCommand('debug things', ['Things:', ' - stairs: the stairs', ' - you: you (on the stairs)', ' - bag of holding: the embroidered bag of holding labeled Tester (being carried by you)', ' - rim: the rim of the bag of holding (part of the embroidered bag of holding labeled Tester)']);
       RunCommand('look up', ['Looking up, you see:', 'Top Room', 'This is the room at the top of the stairs.']);
       RunCommand('look down', ['Looking down, you see:', 'Bottom Room', 'This is the room at the bottom of the stairs.']);
       RunCommand('find stairs', ['The stairs are between the Bottom room and the Top room.']);
