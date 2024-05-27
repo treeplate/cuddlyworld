@@ -72,6 +72,7 @@ begin
    TunnelEnd.Add(TStructure.Create('east wall', '(white (east eastern)@)* wall/walls', 'The eastern wall of the tunnel end room is white.', 'There does not seem to be any way to attach things to the wall.'), tpPartOfImplicit);
    TunnelEnd.Add(TStructure.Create('west wall', '(white (west western)@)* wall/walls', 'The western wall of the tunnel end room is white.', 'There does not seem to be any way to attach things to the wall.'), tpPartOfImplicit);
 
+<<<<<<< HEAD
    Bedroom := TGroundLocation.Create('Bedroom', 'the bedroom', 'a bedroom', 'The bedroom is a large room. On the ceiling are some stars.', CreateStoneSurface());
    Bed := TDescribedPhysicalThing.Create('bed', 'bed/beds', 'The bed is medium-sized bed.', tmPonderous, tsBig);
    Pillow := TDescribedPhysicalThing.Create('pillow', '((car? pillow/pillows) car/cars)@', 'The pillow has drawings of cars on it.', tmLight, tsSmall);
@@ -79,6 +80,12 @@ begin
    Ceiling := TStructure.Create('ceiling', 'pretty? starry? ceiling/ceilings', 'The ceiling has some pretty stars on it.', 'Putting things on a ceiling seems like an exercise in futility.');
    Bedroom.Add(Ceiling, tpPartOfImplicit);
    Ceiling.Add(Stars, tpPartOfImplicit);
+=======
+   Bedroom := TGroundLocation.Create('Bedroom', 'a bedroom', 'the bedroom', 'The bedroom is a large room. On the ceiling are some stars.', CreateStoneSurface());
+   Bed := TDescribedPhysicalThing.Create('bed', 'bed/beds', 'The bed is a medium-sized bed.', tmPonderous, tsGigantic);
+   Pillow := TDescribedPhysicalThing.Create('pillow', '((car? pillow/pillows) car/cars)@', 'The pillow has drawings of cars on it.', tmLight, tsSmall);
+      Stars := TFeature.Create('stars', '(ceiling/ceilings star/stars)#', 'The ceiling has stars on it.');
+>>>>>>> 819b622 (fix typo, add message to an assert, add registrations to gitignore)
 
    Bedroom.GetSurface().Add(Bed, tpOn);
    Bed.GetSurface().Add(Pillow, tpOn);
@@ -116,6 +123,7 @@ begin
    Thing.Add(TDescribedPhysicalThing.Create('silver fork', '(silver (fork/forks utensil/utensils (silverware set/sets)&)@)&', 'The fork is made of silver.', tmLight, tsSmall), tpOn);
    Thing.Add(TDescribedPhysicalThing.Create('silver spoon', '(silver (spoon/spoons utensil/utensils (silverware set/sets)&)@)&', 'The spoon is made of silver.', tmLight, tsSmall), tpOn);
    Cave.GetSurface().Add(TSpade.Create(), tpOn);
+<<<<<<< HEAD
 
    DoorFrame := TDoorWay.Create('door frame', '(door frame/frames)', 'The door frame is a frame around where a door would go.', cdNorth,
                                 TDoor.Create('door', 'flat? door/doors',
@@ -125,6 +133,11 @@ begin
    World.AddLocation(ConnectThreshold(Tunnel, TunnelEnd, DoorFrame));
 
    World.AddLocation(ConnectStairs(Cave, Bedroom));
+=======
+   
+      Bedroom.GetSurface().Add(TOpening.Create('stairs', 'stair/stairs', 'The stairs lead down.', Cave, tsGigantic), tpSurfaceOpening);
+      Ceiling.Add(TOpening.Create('stairs', 'stair/stairs', 'The stairs lead up.', Bedroom, tsGigantic), tpSurfaceOpening);
+>>>>>>> 819b622 (fix typo, add message to an assert, add registrations to gitignore)
 
    ConnectLocations(Tunnel, cdWest, Cave, [loPermissibleNavigationTarget, loAutoDescribe]);
 
