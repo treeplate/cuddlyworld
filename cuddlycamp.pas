@@ -73,7 +73,7 @@ begin
    TunnelEnd.Add(TStructure.Create('west wall', '(white (west western)@)* wall/walls', 'The western wall of the tunnel end room is white.', 'There does not seem to be any way to attach things to the wall.'), tpPartOfImplicit);
 
    Bedroom := TGroundLocation.Create('Bedroom', 'the bedroom', 'a bedroom', 'The bedroom is a large room. On the ceiling are some stars.', CreateStoneSurface());
-   Bed := TDescribedPhysicalThing.Create('bed', 'bed/beds', 'The bed is a medium-sized bed.', tmPonderous, tsGigantic);
+   Bed := TDescribedPhysicalThing.Create('bed', 'bed/beds', 'The bed is a medium-sized bed.', tmPonderous, tsBig);
    Pillow := TDescribedPhysicalThing.Create('pillow', '((car? pillow/pillows) car/cars)@', 'The pillow has drawings of cars on it.', tmLight, tsSmall);
    Stars := TFeature.Create('stars', '(ceiling/ceilings star/stars)#', 'The ceiling has stars on it.');
 
