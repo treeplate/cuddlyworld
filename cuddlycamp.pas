@@ -68,9 +68,9 @@ begin
    TunnelEnd := TGroundLocation.Create('Tunnel End', 'a tunnel end', 'the tunnel end', 'The tunnel end room has white walls.', CreateEarthSurface());
 
    Bedroom := TGroundLocation.Create('Bedroom', 'a bedroom', 'the bedroom', 'The bedroom is a large room. On the ceiling are some stars.', CreateStoneSurface());
-   Bed := TDescribedPhysicalThing.Create('bed', 'bed/beds', 'The bed is medium-sized bed.', tmPonderous, tsBig);
+   Bed := TDescribedPhysicalThing.Create('bed', 'bed/beds', 'The bed is a medium-sized bed.', tmPonderous, tsGigantic);
    Pillow := TDescribedPhysicalThing.Create('pillow', '((car? pillow/pillows) car/cars)@', 'The pillow has drawings of cars on it.', tmLight, tsSmall);
-   Stars := TFeature.Create('stars', '(ceiling/ceilings star/stars)#', 'The ceiling has stars on it.');
+      Stars := TFeature.Create('stars', '(ceiling/ceilings star/stars)#', 'The ceiling has stars on it.');
 
    Bedroom.GetSurface().Add(Bed, tpOn);
    Bed.GetSurface().Add(Pillow, tpOn);
@@ -109,9 +109,9 @@ begin
    Thing.Add(TDescribedPhysicalThing.Create('silver fork', '(silver (fork/forks utensil/utensils (silverware set/sets)&)@)&', 'The fork is made of silver.', tmLight, tsSmall), tpOn);
    Thing.Add(TDescribedPhysicalThing.Create('silver spoon', '(silver (spoon/spoons utensil/utensils (silverware set/sets)&)@)&', 'The spoon is made of silver.', tmLight, tsSmall), tpOn);
    Cave.GetSurface().Add(TSpade.Create(), tpOn);
-
-   Bedroom.GetSurface().Add(TOpening.Create('stairs', 'stair/stairs', 'The stairs lead down.', Cave, tsGigantic), tpSurfaceOpening);
-   Ceiling.Add(TOpening.Create('stairs', 'stair/stairs', 'The stairs lead up.', Bedroom, tsGigantic), tpSurfaceOpening);
+   
+      Bedroom.GetSurface().Add(TOpening.Create('stairs', 'stair/stairs', 'The stairs lead down.', Cave, tsGigantic), tpSurfaceOpening);
+      Ceiling.Add(TOpening.Create('stairs', 'stair/stairs', 'The stairs lead up.', Bedroom, tsGigantic), tpSurfaceOpening);
 
    ConnectLocations(Tunnel, cdSouth, TunnelEnd, [loPermissibleNavigationTarget, loAutoDescribe]);
    ConnectLocations(Tunnel, cdWest, Cave, [loPermissibleNavigationTarget, loAutoDescribe]);

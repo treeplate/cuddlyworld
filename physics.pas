@@ -825,7 +825,7 @@ begin
    Assert(ParentSearch is TThing);
    repeat
       ParentSearch := (ParentSearch as TThing).Parent;
-      Assert(ParentSearch <> Thing);
+      Assert(ParentSearch <> Thing, 'Cycle in world including ' + Thing.GetLongDefiniteName(nil));
    until (not (ParentSearch is TThing));
    {$ENDIF}
 end;
@@ -1465,13 +1465,13 @@ var
 begin
    Result := inherited;
    Assert(Assigned(FParent));
-   Context := FParent.GetRepresentative();
-   if (Context is TThing) then
-      case FPosition of
-         tpAmbiguousPartOfImplicit: Result := Result + ' of ' + Context.GetDefiniteName(Perspective);
-      else
-         ;
-      end;
+     Context := FParent.GetRepresentative();
+     if (Context is TThing) then
+        case FPosition of
+           tpAmbiguousPartOfImplicit: Result := Result + ' of ' + Context.GetDefiniteName(Perspective);
+        else
+           ;
+   end;
 end;
 
 function TThing.GetLongDefiniteName(Perspective: TAvatar): UTF8String;
