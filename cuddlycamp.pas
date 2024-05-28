@@ -75,7 +75,10 @@ begin
    Bedroom := TGroundLocation.Create('Bedroom', 'the bedroom', 'a bedroom', 'The bedroom is a large room. On the ceiling are some stars.', CreateStoneSurface());
    Bed := TDescribedPhysicalThing.Create('bed', 'bed/beds', 'The bed is a medium-sized bed.', tmPonderous, tsBig);
    Pillow := TDescribedPhysicalThing.Create('pillow', '((car? pillow/pillows) car/cars)@', 'The pillow has drawings of cars on it.', tmLight, tsSmall);
-   Stars := TFeature.Create('stars', '(ceiling/ceilings star/stars)#', 'The ceiling has stars on it.');
+   Stars := TFeature.Create('stars', 'pretty? ceiling? star/stars', 'The ceiling has stars on it.');
+   Ceiling := TStructure.Create('ceiling', 'pretty? starry? ceiling/ceilings', 'The ceiling has some pretty stars on it.', 'Putting things on a ceiling seems like an exercise in futility.');
+   Bedroom.Add(Ceiling, tpPartOfImplicit);
+   Ceiling.Add(Stars, tpPartOfImplicit);
 
    Bedroom.GetSurface().Add(Bed, tpOn);
    Bed.GetSurface().Add(Pillow, tpOn);
@@ -123,7 +126,6 @@ begin
 
    World.AddLocation(ConnectStairs(Cave, Bedroom));
 
-   ConnectLocations(Tunnel, cdSouth, TunnelEnd, [loPermissibleNavigationTarget, loAutoDescribe]);
    ConnectLocations(Tunnel, cdWest, Cave, [loPermissibleNavigationTarget, loAutoDescribe]);
 
    World.AddLocation(Tunnel);

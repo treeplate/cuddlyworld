@@ -1603,12 +1603,12 @@ var
 begin
    Result := inherited;
    Assert(Assigned(FParent));
-     Context := FParent.GetRepresentative();
-     if (Context is TThing) then
-        case FPosition of
-           tpAmbiguousPartOfImplicit: Result := Result + ' of ' + Context.GetDefiniteName(Perspective);
-        else
-           ;
+   Context := FParent.GetRepresentative();
+   if (Context is TThing) then
+      case FPosition of
+         tpAmbiguousPartOfImplicit: Result := Result + ' of ' + Context.GetDefiniteName(Perspective);
+      else
+         ;
    end;
 end;
 
