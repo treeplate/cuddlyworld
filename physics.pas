@@ -1607,8 +1607,8 @@ begin
    if (Context is TThing) then
       case FPosition of
          tpAmbiguousPartOfImplicit: Result := Result + ' of ' + Context.GetDefiniteName(Perspective);
-      else
-         ;
+   else
+      ;
    end;
 end;
 
