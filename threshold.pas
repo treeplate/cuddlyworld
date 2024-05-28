@@ -13,9 +13,8 @@ type
    TVisibleSides = set of TVisibleSide;
 
 type
-   TThresholdThing = class abstract(TScenery) // not sure we should really inherit from TScenery, maybe some other class that only has some of TScenery's baggage...
+   TThresholdThing = class abstract(TScenery)
     protected
-     var
       FFrontSideFacesDirection: TCardinalDirection;
       function LocatePerspective(Perspective: TAvatar): TRelativePerspectivePosition;
       class function CreateFromProperties(Properties: TTextStreamProperties): TThresholdThing; override;
@@ -60,8 +59,8 @@ type
       constructor Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String; FrontFacesDirection: TCardinalDirection; Door: TDoor = nil);
       class procedure DescribeProperties(Describer: TPropertyDescriber); override;
       function IsClear(): Boolean; virtual;
-      procedure EnumerateObtrusiveObstacles(List: TThingList); override;
-      procedure ProxiedEnumerateExplicitlyReferencedThings(Tokens: TTokens; Start: Cardinal; Perspective: TAvatar; FromOutside: Boolean; Reporter: TThingReporter); override;
+      procedure EnumerateChildren(List: TThingList; const PositionFilter: TThingPositionFilter); override;
+      procedure ProxiedEnumerateExplicitlyReferencedThings(Tokens: TTokens; Start: Cardinal; Perspective: TAvatar; FromOutside, FromFarAway: Boolean; Directions: TCardinalDirectionSet; Reporter: TThingReporter); override;
       procedure ProxiedFindMatchingThings(Perspective: TAvatar; Options: TFindMatchingThingsOptions; PositionFilter: TThingPositionFilter; PropertyFilter: TThingFeatures; List: TThingList); override;
       function ProxiedFindThingTraverser(Thing: TThing; Perspective: TAvatar; Options: TFindThingOptions): Boolean; override;
       function CanPut(Thing: TThing; ThingPosition: TThingPosition; Care: TPlacementStyle; Perspective: TAvatar; var Message: TMessage): Boolean; override;
@@ -69,11 +68,12 @@ type
       procedure HandleAdd(Thing: TThing; Blame: TAvatar); override;
       procedure HandlePassedThrough(Traveller: TThing; AFrom, ATo: TAtom; AToPosition: TThingPosition; Perspective: TAvatar); override;
       function GetInside(var PositionOverride: TThingPosition): TThing; override;
-      function CanInsideHold(const Manifest: TThingSizeManifest): Boolean; override;
-      function GetDefaultDestination(out ThingPosition: TThingPosition): TThing; override;
+      function CanInsideHold(const Manifest: TThingSizeManifest; const ManifestCount: Integer): Boolean; override;
+      function GetDefaultDestination(var ThingPosition: TThingPosition): TThing; override;
       function GetLookIn(Perspective: TAvatar): UTF8String; override;
       function GetLookThrough(Perspective: TAvatar): UTF8String; virtual; // this gives the answer regardless of whether there's a door, it's open, or whatever
       function GetLookUnder(Perspective: TAvatar): UTF8String; override;
+      function GetDescriptionRemoteBrief(Perspective: TAvatar; Mode: TGetPresenceStatementMode; Direction: TCardinalDirection): UTF8String; override;
       function GetDescriptionRemoteDetailed(Perspective: TAvatar; Direction: TCardinalDirection; LeadingPhrase: UTF8String; Options: TLeadingPhraseOptions): UTF8String; override;
       function GetDescriptionObstacles(Perspective: TAvatar; NoObstacleMessage: UTF8String = ''): UTF8String; virtual;
       function GetDescriptionEmpty(Perspective: TAvatar): UTF8String; override;
@@ -85,6 +85,7 @@ type
       function Open(Perspective: TAvatar; var Message: TMessage): Boolean; override;
       function Close(Perspective: TAvatar; var Message: TMessage): Boolean; override;
       function CanTraverse(Traveller: TThing; Direction: TCardinalDirection; Perspective: TAvatar): Boolean; override;
+      function GetNavigationInstructions(Direction: TCardinalDirection; Child: TThing; Perspective: TAvatar; var Message: TMessage): TNavigationInstruction; override;
       property Door: TDoor read GetDoor; // can be nil, if there's no door
    end;
 
@@ -119,7 +120,6 @@ type
       function GetCannotSeeUnder(Perspective: TAvatar): UTF8String; virtual;
       function GetDescriptionClosed(Perspective: TAvatar): UTF8String; override;
       function GetEntrance(Traveller: TThing; Direction: TCardinalDirection; Perspective: TAvatar; var PositionOverride: TThingPosition; var DisambiguationOpening: TThing; var Message: TMessage; NotificationList: TAtomList): TAtom; override;
-      function GetNavigationInstructions(Direction: TCardinalDirection; Child: TThing; Perspective: TAvatar; var Message: TMessage): TNavigationInstruction; override;
       function GetFeatures(): TThingFeatures; override;
       function Open(Perspective: TAvatar; var Message: TMessage): Boolean; override;
       function Close(Perspective: TAvatar; var Message: TMessage): Boolean; override;
@@ -127,15 +127,22 @@ type
       property Description: UTF8String read FDescription write FDescription;
    end;
 
-   TDoorSide = class(TFeature) // @RegisterStorableClass
+   TDoorSide = class(TDescribedPhysicalThing) // @RegisterStorableClass
     // description argument to constructor shouldn't have a capital first letter
     // it gets concatenated to leading clauses like "On the front side, "...
     protected
       function GetMatcherFlags(Perspective: TAvatar): TMatcherFlags; override;
+      class function CreateFromProperties(Properties: TTextStreamProperties): TDoorSide; override;
     public
+      constructor Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String; AMass: TThingMass = tmLight; ASize: TThingSize = tsSmall);
+      class procedure DescribeProperties(Describer: TPropertyDescriber); override;
       const mfOtherSideVisible: TMatcherFlag = 1;
       function GetDescriptionSelf(Perspective: TAvatar): UTF8String; override;
       function GetDescriptionSelfSentenceFragment(Perspective: TAvatar): UTF8String; virtual;
+      function GetRepresentative(): TAtom; override;
+      function GetSurface(): TThing; override;
+      function CanMove(Perspective: TAvatar; var Message: TMessage): Boolean; override;
+      function CanPut(Thing: TThing; ThingPosition: TThingPosition; Care: TPlacementStyle; Perspective: TAvatar; var Message: TMessage): Boolean; override;
    end;
 
    TThresholdSurface = class(TSurface) // @RegisterStorableClass
@@ -156,7 +163,7 @@ type
       function GetDescriptionRemoteDetailed(Perspective: TAvatar; Direction: TCardinalDirection; LeadingPhrase: UTF8String; Options: TLeadingPhraseOptions): UTF8String; override;
       function GetContextFragment(Perspective: TAvatar; PertinentPosition: TThingPosition; Context: TAtom = nil): UTF8String; override;
       procedure GetNearbyThingsByClass(List: TThingList; FromOutside: Boolean; Filter: TThingClass); override;
-      procedure EnumerateExplicitlyReferencedThingsDirectional(Tokens: TTokens; Start: Cardinal; Perspective: TAvatar; Distance: Cardinal; Direction: TCardinalDirection; Reporter: TThingReporter); override;
+      procedure EnumerateExplicitlyReferencedThings(Tokens: TTokens; Start: Cardinal; Perspective: TAvatar; FromOutside, FromFarAway: Boolean; Directions: TCardinalDirectionSet; Reporter: TThingReporter); override;
       function GetEntrance(Traveller: TThing; Direction: TCardinalDirection; Perspective: TAvatar; var PositionOverride: TThingPosition; var DisambiguationOpening: TThing; var Message: TMessage; NotificationList: TAtomList): TAtom; override;
       procedure ProxiedFindMatchingThings(Perspective: TAvatar; Options: TFindMatchingThingsOptions; PositionFilter: TThingPositionFilter; PropertyFilter: TThingFeatures; List: TThingList); override;
       function ProxiedFindThingTraverser(Thing: TThing; Perspective: TAvatar; Options: TFindThingOptions): Boolean; override;
@@ -164,8 +171,12 @@ type
 
 // XXX wall with a hole in it... wall without a hole in it... wall that can be hit to make a hole in it...
 
+// Same as ConnectLocations but puts a threshold between them. Direction is determined from the Threshold thing.
+//
+// Return value must be added to the World. (If you see a memory leak on exit, you probably forgot to do that.)
+// If you omit loAutoDescribe from the last argument, then the threshold won't be mentioned in descriptions of rooms that contain it.
+// Flags will always contain loPermissibleNavigationTarget and loThreshold regardless of the provided argument.
 function ConnectThreshold(FrontLocation, BackLocation: TLocation; Threshold: TThresholdThing; Surface: TThing = nil; Flags: TLandmarkOptions = [loAutoDescribe]): TThresholdLocation;
-// if you omit loAutoDescribe from the last argument, then the threshold won't be mentioned in descriptions of rooms that contain it
 
 implementation
 
@@ -187,7 +198,7 @@ end;
 
 constructor TThresholdThing.Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String; FrontFacesDirection: TCardinalDirection);
 begin
-   inherited Create(Name, Pattern, Description, tmPonderous, tsMassive);
+   inherited Create(Name, Pattern, Description, tmHeavy, tsMassive);
    FFrontSideFacesDirection := FrontFacesDirection;
 end;
 
@@ -272,6 +283,23 @@ begin
    end;
 end;
 
+function TDoorWay.GetNavigationInstructions(Direction: TCardinalDirection; Child: TThing; Perspective: TAvatar; var Message: TMessage): TNavigationInstruction;
+begin
+   Assert(Message.IsValid);
+   if (Direction in [cdOut, cdDown]) then
+   begin
+      Result.TravelType := ttByPosition;
+      Result.RequiredAbilities := [naWalk];
+      Result.PositionTarget := FParent.GetSurface();
+      Assert(Assigned(Result.PositionTarget)); // XXX handle a doorway being in an area with no surface? but what would that mean?
+      Result.Position := tpOn;
+   end
+   else
+   begin
+      Result := inherited;
+   end;
+end;
+
 function TThresholdThing.CanTraverse(Traveller: TThing; Direction: TCardinalDirection; Perspective: TAvatar): Boolean;
 begin
    Result := True;
@@ -334,7 +362,7 @@ end;
 function TStaticThresholdThing.GetDescriptionSelf(Perspective: TAvatar): UTF8String;
 begin
    case (LocatePerspective(Perspective)) of
-      rppFront: 
+      rppFront:
          begin
             if (FFrontSideDescription <> '') then
                Result := FFrontSideDescription
@@ -422,31 +450,31 @@ function TDoorWay.IsClear(): Boolean;
 var
    List: TThingList;
 begin
-   List := GetObtrusiveObstacles();
+   List := GetChildren(tpObtrusive);
    Result := List.Length = 0;
    List.Free();
 end;
 
-procedure TDoorWay.EnumerateObtrusiveObstacles(List: TThingList);
+procedure TDoorWay.EnumerateChildren(List: TThingList; const PositionFilter: TThingPositionFilter);
 begin
    inherited;
    if (FParent is TThresholdLocation) then
-      FParent.EnumerateObtrusiveObstacles(List);
+      FParent.EnumerateChildren(List, PositionFilter);
 end;
 
-procedure TDoorWay.ProxiedEnumerateExplicitlyReferencedThings(Tokens: TTokens; Start: Cardinal; Perspective: TAvatar; FromOutside: Boolean; Reporter: TThingReporter);
+procedure TDoorWay.ProxiedEnumerateExplicitlyReferencedThings(Tokens: TTokens; Start: Cardinal; Perspective: TAvatar; FromOutside, FromFarAway: Boolean; Directions: TCardinalDirectionSet; Reporter: TThingReporter);
 var
    Obstacles: TThingList;
    Obstacle: TThing;
 begin
    inherited;
-   Obstacles := GetObtrusiveObstacles();
+   Obstacles := GetChildren(tpObtrusive);
    try
       for Obstacle in Obstacles do // should we check IsChildTraversable() ?
-         Obstacle.ProxiedEnumerateExplicitlyReferencedThings(Tokens, Start, Perspective, FromOutside, Reporter);
+         Obstacle.ProxiedEnumerateExplicitlyReferencedThings(Tokens, Start, Perspective, FromOutside, FromFarAway, Directions, Reporter);
    finally
       Obstacles.Free();
-   end;      
+   end;
 end;
 
 procedure TDoorWay.ProxiedFindMatchingThings(Perspective: TAvatar; Options: TFindMatchingThingsOptions; PositionFilter: TThingPositionFilter; PropertyFilter: TThingFeatures; List: TThingList);
@@ -455,13 +483,13 @@ var
    Obstacle: TThing;
 begin
    inherited;
-   Obstacles := GetObtrusiveObstacles();
+   Obstacles := GetChildren(tpObtrusive);
    try
       for Obstacle in Obstacles do // should we check IsChildTraversable() ?
          Obstacle.ProxiedFindMatchingThings(Perspective, Options, PositionFilter, PropertyFilter, List);
    finally
       Obstacles.Free();
-   end;      
+   end;
 end;
 
 function TDoorWay.ProxiedFindThingTraverser(Thing: TThing; Perspective: TAvatar; Options: TFindThingOptions): Boolean;
@@ -472,7 +500,7 @@ begin
    Result := inherited;
    if (Result) then
       exit;
-   Obstacles := GetObtrusiveObstacles();
+   Obstacles := GetChildren(tpObtrusive);
    try
       for Obstacle in Obstacles do // should we check IsChildTraversable() ?
          if (Obstacle.ProxiedFindThingTraverser(Thing, Perspective, Options)) then
@@ -482,7 +510,7 @@ begin
          end;
    finally
       Obstacles.Free();
-   end;      
+   end;
 end;
 
 function TDoorWay.CanPut(Thing: TThing; ThingPosition: TThingPosition; Care: TPlacementStyle; Perspective: TAvatar; var Message: TMessage): Boolean;
@@ -495,7 +523,7 @@ begin
    OldDoor := GetDoor();
    if (ThingPosition = tpOn) then
    begin
-      if (Assigned(OldDoor)) then
+      if (not Assigned(OldDoor)) then
          Message := TMessage.Create(mkClosed, '_ can''t put something on _.',
                                    [Capitalise(Perspective.GetDefiniteName(Perspective)), GetIndefiniteName(Perspective)])
       else
@@ -521,7 +549,7 @@ begin
          end
          else
          begin
-            DoorObstacles := Thing.GetObtrusiveObstacles();
+            DoorObstacles := Thing.GetChildren(tpObtrusive);
             try
                if (DoorObstacles.Length > 0) then
                begin
@@ -616,7 +644,7 @@ begin
                    M(@GetDefiniteName), // the door way
                    M('. '),
                    C(M(@Thing.GetSubjectPronoun)), SP, // It
-                   MP(Thing, M('is'), M('are')), SP, // is 
+                   MP(Thing, M('is'), M('are')), SP, // is
                    M(TernaryConditional('closed', 'open', IsOpen())),
                    M('.')]);
    end;
@@ -644,18 +672,23 @@ begin
    Result := Self;
 end;
 
-function TDoorWay.CanInsideHold(const Manifest: TThingSizeManifest): Boolean;
+function TDoorWay.CanInsideHold(const Manifest: TThingSizeManifest; const ManifestCount: Integer): Boolean;
 begin
    Result := (GetInsideSizeManifest() + Manifest) < FSize;
 end;
 
-function TDoorWay.GetDefaultDestination(out ThingPosition: TThingPosition): TThing;
+function TDoorWay.GetDefaultDestination(var ThingPosition: TThingPosition): TThing;
 begin
-   ThingPosition := tpOn;
-   if (FParent is TThresholdLocation) then
-      Result := FParent.GetSurface()
+   if ((ThingPosition = tpOn) and (FParent is TThresholdLocation)) then
+   begin
+      Result := FParent.GetSurface();
+   end
    else
+   begin
+      Assert(ThingPosition in [tpAt, tpIn]);
+      ThingPosition := tpIn;
       Result := Self;
+   end;
    Assert(Assigned(Result));
 end;
 
@@ -709,7 +742,22 @@ begin
       rppFront: Result := GetLookTowardsDirection(Perspective, cdReverse[FFrontSideFacesDirection]);
       rppBack: Result := GetLookTowardsDirection(Perspective, FFrontSideFacesDirection);
       else
-         Result := '';
+         Result := FParent.GetBasicDescription(Perspective, psThereIsAThingHere, cdAllDirections, Self); // we're probably at the threshold itself somehow
+   end;
+end;
+
+function TDoorWay.GetDescriptionRemoteBrief(Perspective: TAvatar; Mode: TGetPresenceStatementMode; Direction: TCardinalDirection): UTF8String;
+var
+   TheDoor: TDoor;
+begin
+   TheDoor := GetDoor();
+   if (Assigned(TheDoor)) then
+   begin
+      Result := TheDoor.GetDescriptionRemoteBrief(Perspective, Mode, Direction);
+   end
+   else
+   begin
+      Result := inherited;
    end;
 end;
 
@@ -717,21 +765,20 @@ function TDoorWay.GetDescriptionRemoteDetailed(Perspective: TAvatar; Direction: 
 var
    TheDoor: TDoor;
 begin
+   // this whole function is a weird mess of cases
+   // we should rethink this all through
+   // we should probably not bother using GetLookThrough either, since we know the direction we're looking
    TheDoor := GetDoor();
    if (not Assigned(TheDoor)) then
    begin
       if (CanSeeThrough()) then
       begin
-         // XXX this is terrible
-         // XXX this is just a stand-in until we can revamp GetLookThrough/GetDescriptionRemoteDetailed
-         // XXX see TODO
          Perspective.AutoDisambiguated('looking through ' + GetDefiniteName(Perspective));
          Result := GetLookThrough(Perspective);
       end
       else
       begin
-         // XXX I don't really understand what this branch is trying to do or what output from this branch would look like...
-         // XXX but I don't think I like it.
+         // Defer to the default behavior but
          if ((lpMandatory in Options) or not (lpNamesTarget in Options)) then
             LeadingPhrase := LeadingPhrase + ','
          else
@@ -748,8 +795,8 @@ begin
       begin
          if (CanSeeThrough()) then
          begin
-            // XXX this is terrible also
-            Perspective.AutoDisambiguated('looking through the open ' + TheDoor.GetName(Perspective));
+            if (Direction <> cdOut) then
+               Perspective.AutoDisambiguated('looking through the open ' + TheDoor.GetName(Perspective));
             Result := GetLookThrough(Perspective);
          end
          else
@@ -760,6 +807,7 @@ begin
       else
          Result := TheDoor.GetDescriptionRemoteDetailed(Perspective, Direction, LeadingPhrase, Options);
    end;
+   /// XXX if we go through the no-door case above, and there's something blocking the door frame, this is ugly:
    Result := Result + WithSpaceIfNotEmpty(GetDescriptionObstacles(Perspective));
 end;
 
@@ -768,7 +816,7 @@ var
    Obstacles: TThingList;
 begin
    Result := '';
-   Obstacles := GetObtrusiveObstacles();
+   Obstacles := GetChildren(tpObtrusive);
    try
       if (Obstacles.Length > 0) then
          Result := 'Blocking ' +
@@ -889,9 +937,9 @@ begin
       end
       else
       begin
-         Obstacles := GetObtrusiveObstacles();
+         Obstacles := GetChildren(tpObtrusive);
          try
-            MoreObstacles := TheDoor.GetObtrusiveObstacles();
+            MoreObstacles := TheDoor.GetChildren(tpObtrusive);
             try
                Obstacles.AdoptList(MoreObstacles);
             finally
@@ -908,7 +956,7 @@ begin
             end;
          finally
             Obstacles.Free();
-         end;      
+         end;
          DoBroadcast([TheDoor, Perspective], Perspective, [C(M(@Perspective.GetDefiniteName)), SP,
                                                            MP(Perspective, M('closes'), M('close')), SP,
                                                            M(@TheDoor.GetDefiniteName), M('.')]);
@@ -1094,7 +1142,7 @@ var
 begin
    TheDoorWay := GetDoorWay();
    Assert(Assigned(TheDoorWay) and TheDoorWay.IsOpen());
-   Obstacles := GetObtrusiveObstacles();
+   Obstacles := GetChildren(tpObtrusive);
    try
       if (Obstacles.Length > 0) then
       begin
@@ -1239,18 +1287,6 @@ begin
       Result := inherited;
 end;
 
-function TDoor.GetNavigationInstructions(Direction: TCardinalDirection; Child: TThing; Perspective: TAvatar; var Message: TMessage): TNavigationInstruction;
-var
-   TheDoorWay: TThing;
-begin
-   Assert(Message.IsValid);
-   TheDoorWay := GetDoorWay();
-   if ((Direction = cdOut) and Assigned(TheDoorWay) and TheDoorWay.IsOpen()) then
-      Result := TheDoorWay.GetNavigationInstructions(Direction, Self, Perspective, Message)
-   else
-      Result := inherited;
-end;
-
 function TDoor.GetFeatures(): TThingFeatures;
 var
    TheDoorWay: TThing;
@@ -1311,6 +1347,46 @@ begin
 end;
 
 
+constructor TDoorSide.Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String; AMass: TThingMass = tmLight; ASize: TThingSize = tsSmall);
+begin
+   { needed for default values }
+   inherited;
+end;
+
+class function TDoorSide.CreateFromProperties(Properties: TTextStreamProperties): TDoorSide;
+var
+   Name: UTF8String;
+   Pattern: UTF8String;
+   Description: UTF8String;
+   MassValue: TThingMass = tmLight;
+   SizeValue: TThingSize = tsSmall;
+   StreamedChildren: TStreamedChildren;
+begin
+   while (not Properties.Done) do
+   begin
+      if (Properties.HandleUniqueStringProperty(pnName, Name) and
+          Properties.HandleUniqueStringProperty(pnPattern, Pattern) and
+          Properties.HandleUniqueStringProperty(pnDescription, Description) and
+          Properties.specialize HandleUniqueEnumProperty<TThingMass>(pnMass, MassValue) and
+          Properties.specialize HandleUniqueEnumProperty<TThingSize>(pnSize, SizeValue) and
+          HandleChildProperties(Properties, StreamedChildren)) then
+         Properties.FailUnknownProperty();
+   end;
+   Properties.EnsureSeen([pnName, pnPattern, pnDescription]);
+   Result := Create(Name, Pattern, Description);
+   StreamedChildren.Apply(Result);
+end;
+
+class procedure TDoorSide.DescribeProperties(Describer: TPropertyDescriber);
+begin
+   Describer.AddProperty(pnName, ptString);
+   Describer.AddProperty(pnPattern, ptPattern);
+   Describer.AddProperty(pnDescription, ptString);
+   Describer.AddProperty(pnMass, ptMass);
+   Describer.AddProperty(pnSize, ptSize);
+   Describer.AddProperty(pnChild, ptChild);
+end;
+
 function TDoorSide.GetMatcherFlags(Perspective: TAvatar): TMatcherFlags;
 var
    TheDoorWay: TDoorWay;
@@ -1333,6 +1409,42 @@ end;
 function TDoorSide.GetDescriptionSelfSentenceFragment(Perspective: TAvatar): UTF8String;
 begin
    Result := inherited GetDescriptionSelf(Perspective);
+end;
+
+function TDoorSide.GetRepresentative(): TAtom;
+begin
+   Assert(Assigned(FParent));
+   Result := FParent;
+end;
+
+function TDoorSide.GetSurface(): TThing;
+begin
+   Result := nil;
+end;
+
+function TDoorSide.CanMove(Perspective: TAvatar; var Message: TMessage): Boolean;
+begin
+   Assert(Message.IsValid);
+   Result := False;
+   Message := TMessage.Create(mkCannotMoveBecauseLocation, '_ _ _ _.',
+                                                           [Capitalise(GetDefiniteName(Perspective)),
+                                                            IsAre(IsPlural(Perspective)),
+                                                            ThingPositionToString(FPosition),
+                                                            FParent.GetDefiniteName(Perspective)]);
+end;
+
+function TDoorSide.CanPut(Thing: TThing; ThingPosition: TThingPosition; Care: TPlacementStyle; Perspective: TAvatar; var Message: TMessage): Boolean;
+begin
+   Assert(Message.IsValid);
+   if ((ThingPosition = tpOn) and (FCannotPlaceExcuse = '')) then
+   begin
+      Result := False;
+      Message := TMessage.Create(mkBogus, 'There does not seem to be any way to attach _ to _.', [Thing.GetIndefiniteName(Perspective), GetDefiniteName(Perspective)]);
+   end
+   else
+   begin
+      Result := inherited;
+   end;
 end;
 
 
@@ -1363,17 +1475,20 @@ class function TThresholdLocation.CreateFromProperties(Properties: TTextStreamPr
 var
    PassageWay, Surface: TThing;
    StreamedLandmarks: TStreamedLandmarks;
+   StreamedChildren: TStreamedChildren;
 begin
    while (not Properties.Done) do
    begin
       if (TThing.HandleUniqueThingProperty(Properties, pnPassageWay, PassageWay, TThing) and {BOGUS Hint: Local variable "PassageWay" does not seem to be initialized}
           TThing.HandleUniqueThingProperty(Properties, pnSurface, Surface, TThing) and {BOGUS Hint: Local variable "Surface" does not seem to be initialized}
-          HandleLandmarkProperties(Properties, StreamedLandmarks)) then
+          HandleLandmarkProperties(Properties, StreamedLandmarks) and
+          HandleChildProperties(Properties, StreamedChildren)) then
        Properties.FailUnknownProperty();
    end;
    Properties.EnsureSeen([pnPassageWay, pnSurface]);
    Result := Create(PassageWay, Surface);
    StreamedLandmarks.Apply(Result);
+   StreamedChildren.Apply(Result);
 end;
 
 class procedure TThresholdLocation.DescribeProperties(Describer: TPropertyDescriber);
@@ -1381,6 +1496,7 @@ begin
    Describer.AddProperty(pnPassageWay, ptThing);
    Describer.AddProperty(pnSurface, ptThing);
    Describer.AddProperty(pnLandmark, ptLandmark);
+   Describer.AddProperty(pnChild, ptChild);
 end;
 
 function TThresholdLocation.GetTitle(Perspective: TAvatar): UTF8String;
@@ -1404,7 +1520,7 @@ end;
 
 function TThresholdLocation.GetDescriptionRemoteBrief(Perspective: TAvatar; Mode: TGetPresenceStatementMode; Direction: TCardinalDirection): UTF8String;
 begin
-   Result := FSource.GetDescriptionDirectional(Perspective, Mode, Direction);
+   Result := FSource.GetDescriptionRemoteBrief(Perspective, Mode, Direction);
 end;
 
 function TThresholdLocation.GetDescriptionRemoteDetailed(Perspective: TAvatar; Direction: TCardinalDirection; LeadingPhrase: UTF8String; Options: TLeadingPhraseOptions): UTF8String;
@@ -1418,18 +1534,18 @@ const
    kNecessaryOptions = [loAutoDescribe, loPermissibleNavigationTarget];
 var
    Direction: TCardinalDirection;
-   Index: Cardinal;
+   Landmark: TDirectionalLandmark;
    List: TAtomList;
 begin
    Assert(Context <> Self);
    List := TAtomList.Create([slDropDuplicates]);
-   for Direction in TCardinalDirection do
-      if (Length(FDirectionalLandmarks[Direction]) > 0) then
-         for Index := Low(FDirectionalLandmarks[Direction]) to High(FDirectionalLandmarks[Direction]) do
+   for Direction in TCardinalDirection do // XXX maybe use cdOrderedCardinalDirections?
+      for Landmark in FLandmarks do // this is rather expensive, we're doing 12 loops over the landmarks
+         if (Landmark.Direction = Direction) then
          begin
-            Assert(Context <> FDirectionalLandmarks[Direction][Index].Atom);
-            if (FDirectionalLandmarks[Direction][Index].Options * kNecessaryOptions = kNecessaryOptions) then
-               List.AppendItem(FDirectionalLandmarks[Direction][Index].Atom);
+            Assert(Context <> Landmark.Atom);
+            if (Landmark.Options * kNecessaryOptions = kNecessaryOptions) then
+               List.AppendItem(Landmark.Atom);
          end;
    if (List.Length >= 2) then
       Result := 'between ' + List.GetDefiniteString(Perspective, 'and')
@@ -1443,17 +1559,18 @@ end;
 
 procedure TThresholdLocation.GetNearbyThingsByClass(List: TThingList; FromOutside: Boolean; Filter: TThingClass);
 var
-   Direction: TCardinalDirection;
+   Landmark: TDirectionalLandmark;
 begin
-   for Direction := Low(FDirectionalLandmarks) to High(FDirectionalLandmarks) do
-      if (Length(FDirectionalLandmarks[Direction]) > 0) then
-         FDirectionalLandmarks[Direction][0].Atom.GetNearbyThingsByClass(List, True, Filter);
+   // The original implementation of this only took the first landmark in each direction.
+   // This was changed when landmarks were simplified. We may need to bring that logic back.
+   for Landmark in FLandmarks do
+      Landmark.Atom.GetNearbyThingsByClass(List, True, Filter);
 end;
 
-procedure TThresholdLocation.EnumerateExplicitlyReferencedThingsDirectional(Tokens: TTokens; Start: Cardinal; Perspective: TAvatar; Distance: Cardinal; Direction: TCardinalDirection; Reporter: TThingReporter);
+procedure TThresholdLocation.EnumerateExplicitlyReferencedThings(Tokens: TTokens; Start: Cardinal; Perspective: TAvatar; FromOutside, FromFarAway: Boolean; Directions: TCardinalDirectionSet; Reporter: TThingReporter);
 begin
-   if (Distance > 0) then
-      FSource.ProxiedEnumerateExplicitlyReferencedThings(Tokens, Start, Perspective, True, Reporter);
+   if (FromFarAway) then
+      FSource.ProxiedEnumerateExplicitlyReferencedThings(Tokens, Start, Perspective, True, True, Directions, Reporter);
    inherited;
 end;
 

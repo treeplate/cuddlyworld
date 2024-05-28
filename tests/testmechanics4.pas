@@ -9,7 +9,7 @@ procedure TestMechanics4();
 implementation
 
 uses
-   sysutils, storable, matcher, physics, player, locations, things, cuddlycamp, world, threshold, testmechanics;
+   sysutils, storable, matcher, physics, player, locations, things, world, threshold, testmechanics;
 
 procedure TestMechanics4();
 
@@ -37,17 +37,17 @@ procedure TestMechanics4();
 
    begin
       RunCommand('look', ['Land', 'The land is a land.']);
-      RunCommand('debug make ''new TDoorWay { name: "doorway"; pattern: "grand? doorway/doorways"; description: "The doorway is grand."; frontDirection: cdSouth; door: new TDoor { name: "door"; pattern: "(open:1 closed:2 wooden)* door/doors"; frontSide: new TDoorSide { name: "side"; pattern: "(varnished wooden front:1)* side/sides"; description: "The wooden door is varnished."; }; backSide: new TDoorSide { name: "side"; pattern: "(((scratched wooden back:1)* side/sides) scratch/scratches)@"; description: "The door has a big scratch, as if made by a wolf."; }; }; }''', ['Poof! There is a doorway here.']);
-      RunCommand('debug things', ['Things:', ' - ground: the ground', ' - you: you', ' - bag of holding: the embroidered bag of holding labeled Tester', ' - rim: the rim of the bag of holding', ' - doorway: the grand doorway', ' - door: the closed wooden door', ' - side: the varnished wooden side of the door', ' - side: the scratched wooden side of the door']);
+      RunCommand('debug make ''new TDoorWay { name: "doorway"; pattern: "grand? doorway/doorways"; description: "The doorway is grand."; frontDirection: cdSouth; door: new TDoor { name: "door"; pattern: "(open:1 closed:2 wooden)* door/doors"; frontSide: new TDoorSide { name: "side"; pattern: "(varnished wooden front:1)* side/sides"; description: "The wooden door is varnished."; }; backSide: new TDoorSide { name: "side"; pattern: "(((scratched wooden back:1)* side/sides) scratch/scratches)@"; description: "The door has a big scratch, as if made by a wolf."; }; }; }''', ['Poof! A side manifests.', 'Poof! A side manifests.', 'Poof! A door manifests.', 'Poof! A doorway manifests.']);
+      RunCommand('debug things', ['Things:', ' - ground: the ground', ' - you: you (on the ground)', ' - bag of holding: the embroidered bag of holding labeled Tester (being carried by you)', ' - rim: the rim of the bag of holding (part of the embroidered bag of holding labeled Tester)', ' - doorway: the grand doorway (being carried by you)', ' - door: the closed wooden door (installed in the grand doorway)', ' - side: the varnished wooden side of the door (part of the closed wooden door)', ' - side: the scratched wooden side of the door (part of the closed wooden door)']);
       RunCommand('inventory', ['You are carrying:', '  A bag of holding.', '  A doorway.']);
       RunCommand('debug make ''new TSign { name: "wooden sign"; pattern: "(burnt wooden)* (sign/signs writing/writings)@"; description: "The sign has some text burnt into it."; writing: "HELLO"; }''', ['The incantation fizzles as you hear a voice whisper "Required property "mass" not found".']);
-      RunCommand('debug make ''new TSign { name: "wooden sign"; pattern: "(burnt wooden)* (sign/signs writing/writings)@"; description: "The sign has some text burnt into it."; writing: "HELLO"; mass: tmLight; size: tsSmall; }''', ['Poof! There is a wooden sign here.']);
+      RunCommand('debug make ''new TSign { name: "wooden sign"; pattern: "(burnt wooden)* (sign/signs writing/writings)@"; description: "The sign has some text burnt into it."; writing: "HELLO"; mass: tmLight; size: tsSmall; }''', ['Poof! A wooden sign manifests.']);
       RunCommand('put sign on ground', ['Placed.']);
       RunCommand('read sign', ['On the wooden sign is written "HELLO".']);
       RunCommand('look', ['Land', 'The land is a land.', 'There is a wooden sign here.']);
       RunCommand('debug make ''new THole{description:"HOLE";size:tsSmall;pileClass: TSpade;}''', ['The incantation fizzles as you hear a voice whisper "Class specified for "pileClass" is not acceptable, must be a TPile".']);
-      RunCommand('debug make ''new THole{description:"HOLE";size:tsSmall;pileClass: TPile;}''', ['Poof! There is a hole here.']);
-      RunCommand('debug make ''new TGroundLocation { name: "Undisclosed location"; definiteName: "the undisclosed location"; indefiniteName: "an undisclosed location"; description: "This is the place where it happens, where secrets are discussed and plans made."; ground: new TEarthGround { name: "ground"; pattern: "(ground/grounds earth)@"; description: "The ground is a flat surface of earth."; }; }''', ['Hocus Pocus! The undisclosed location now exists.']);
+      RunCommand('debug make ''new THole{description:"HOLE";size:tsSmall;pileClass: TPile;}''', ['Poof! A hole manifests.']);
+      RunCommand('debug make ''new TGroundLocation { name: "Undisclosed location"; definiteName: "the undisclosed location"; indefiniteName: "an undisclosed location"; description: "This is the place where it happens, where secrets are discussed and plans made."; ground: new TEarthGround { name: "ground"; pattern: "(ground/grounds earth)@"; description: "The ground is a flat surface of earth."; }; }''', ['Poof! A ground manifests.', 'Hocus Pocus! The undisclosed location now exists.']);
       RunCommand('debug connect north to undisclosed location', ['Abracadabra! Going north from the Land now leads to the Undisclosed location.']);
       RunCommand('look', ['Land', 'The land is a land. To the north is the undisclosed location.', 'There is a wooden sign here.']);
       RunCommand('n', ['Undisclosed location', 'This is the place where it happens, where secrets are discussed and plans made.']);
@@ -56,9 +56,9 @@ procedure TestMechanics4();
       RunCommand('look', ['Undisclosed location', 'This is the place where it happens, where secrets are discussed and plans made. To the south is the land.']);
       RunCommand('find sign', ['I can''t find anything like a "sign" here.']);
       RunCommand('debug teleport land', ['Land', 'The land is a land. To the north is the undisclosed location.', 'There is a wooden sign here.']);
-      RunCommand('debug teleport sign', ['On the wooden sign (at the land)', 'The sign has some text burnt into it.', 'The land is a land. To the north is the undisclosed location.']);
-      RunCommand('debug make ''new TScenery { name: "test"; pattern: "test/tests"; description: "The test is a test."; }''', ['Poof! There is a test here.']);
-      RunCommand('debug describe class TScenery', ['Properties available on TScenery:', ' - name: string', ' - pattern: pattern', ' - description: string', ' - underDescription: string', ' - findDescription: string', ' - cannotMoveExcuse: string', ' - opened: boolean', ' - mass: enum:TThingMass', ' - size: enum:TThingSize', ' - child: child*']);
+      RunCommand('debug teleport sign', ['On the wooden sign (at the land)', 'The sign has some text burnt into it.', 'The wooden sign is on the ground. To the north is the undisclosed location.']);
+      RunCommand('debug make ''new TScenery { name: "test"; pattern: "test/tests"; description: "The test is a test."; }''', ['Poof! A test manifests.']);
+      RunCommand('debug describe class TScenery', ['Properties available on TScenery:', ' - name: string', ' - pattern: pattern', ' - description: string', ' - underDescription: string', ' - findDescription: string', ' - cannotMoveExcuse: string', ' - cannotPlaceExcuse: string', ' - opened: boolean', ' - mass: enum:TThingMass', ' - size: enum:TThingSize', ' - child: child*']);
       RunCommand('debug describe enum TThingMass', ['Enum values available on TThingMass:', ' - tmLight', ' - tmHeavy', ' - tmPonderous', ' - tmLudicrous']);
    end;
 
@@ -148,9 +148,18 @@ procedure TestMechanics4();
          'connect room2, cdNorth, doorway, loAutoDescribe loPermissibleNavigationTarget loNotVisibleFromBehind loThreshold, bidirectional;' +
          '''',
          [
+            'Poof! A sun manifests.',
+            'Poof! A sky manifests.',
             'Hocus Pocus! The sky now exists.',
+            'Poof! A side manifests.',
+            'Poof! A side manifests.',
+            'Poof! A door manifests.',
+            'Poof! A doorway manifests.',
+            'Poof! A floor manifests.',
             'Hocus Pocus! The doorway now exists.',
+            'Poof! A ground manifests.',
             'Hocus Pocus! A room now exists.',
+            'Poof! A ground manifests.',
             'Hocus Pocus! A back room now exists.',
             'Abracadabra! Going south from the Room now leads to the doorway.',
             'Abracadabra! Going north from the doorway now leads to the Room.',
@@ -159,18 +168,21 @@ procedure TestMechanics4();
          ]
       );
       RunCommand('debug connect south and back to room with loAutoDescribe loPermissibleNavigationTarget', ['Abracadabra! Going south from the Land now leads to the Room.', 'Abracadabra! Going north from the Room now leads to the Land.']);
-      RunCommand('south', ['Room', 'Nothing is particularly noteworthy about this location. To the south is a doorway. To the north is the land.']);
+      RunCommand('south', ['Room', 'Nothing is particularly noteworthy about this location. To the south is a door. To the north is the land.']);
       RunCommand('find boogie', ['I can''t find anything like a "boogie" here.']); // verifies you can seek things when a door is around without loThreshold (used to crash)
       RunCommand('open door', ['Opened.']);
-      RunCommand('move me to door', ['You can''t see the door anymore.']); // because of lacking loThreshold
-      RunCommand('south', ['(through the doorway)', 'Back Room', 'Nothing is particularly noteworthy about this second location. To the north is a doorway.']);
-      RunCommand('move me to door', ['On the door (installed in the doorway, between a room and a back room)', 'The door has two sides. On the front, the door is varnished. On the back, the door has a big scratch, as if made by a wolf. The door is open.']);
+      RunCommand('move me to door', ['(on the door)', 'You can''t see the door anymore.']); // because of lacking loThreshold
+      RunCommand('south', ['(through the doorway)', 'Back Room', 'Nothing is particularly noteworthy about this second location. To the north is a door.']);
+      RunCommand('move me to door', ['(on the door)', 'On the door (installed in the doorway, between a room and a back room)', 'The door has two sides. On the front, the door is varnished. On the back, the door has a big scratch, as if made by a wolf. The door is open.', 'The door is installed in the unnotable doorway. The doorway has no notable features. To the north is a room. To the south is a back room.']);
       RunCommand('find boogie', ['I can''t find anything like a "boogie" here.']);
-      RunCommand('find ground', ['I can''t find anything like a "ground" here.']); // XXX should be able to find the ground
-      RunCommand('down', ['You cannot go down. The floor has no discernible entrance.']); // XXX this is clearly dumb
+      RunCommand('find ground', ['The floor is below.']);
       RunCommand('out', ['Doorway between a room and a back room', 'The doorway has no notable features. To the north is a room. To the south is a back room.']);
-      RunCommand('south', ['Back Room', 'Nothing is particularly noteworthy about this second location. To the north is a doorway.']);
-      RunCommand('move into doorway', ['(through the doorway)', 'Room', 'Nothing is particularly noteworthy about this location. To the south is a doorway. To the north is the land.']);
+      RunCommand('move me to door', ['(on the door)', 'On the door (installed in the doorway, between a room and a back room)', 'The door has two sides. On the front, the door is varnished. On the back, the door has a big scratch, as if made by a wolf. The door is open.', 'The door is installed in the unnotable doorway. The doorway has no notable features. To the north is a room. To the south is a back room.']);
+      RunCommand('down', ['Doorway between a room and a back room', 'The doorway has no notable features. To the north is a room. To the south is a back room.']);
+      RunCommand('move me to door', ['(on the door)', 'On the door (installed in the doorway, between a room and a back room)', 'The door has two sides. On the front, the door is varnished. On the back, the door has a big scratch, as if made by a wolf. The door is open.', 'The door is installed in the unnotable doorway. The doorway has no notable features. To the north is a room. To the south is a back room.']);
+      RunCommand('look out', ['To the north is a room. To the south is a back room.']);
+      RunCommand('south', ['Back Room', 'Nothing is particularly noteworthy about this second location. To the north is a door.']);
+      RunCommand('move into doorway', ['(through the doorway)', 'Room', 'Nothing is particularly noteworthy about this location. To the south is a door. To the north is the land.']);
       RunCommand('say "hello"', ['You say "hello".']);
       RunCommand('say ''hello''', ['You say "hello".']);
       RunCommand('say "he\llo"', ['You say "he\llo".']);

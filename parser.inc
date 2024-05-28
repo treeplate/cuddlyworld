@@ -1,11 +1,20 @@
 //{$DEFINE DEBUG_PARSER} // -*- delphi -*-
 
+// Context is:
+//
+// procedure TWorld.Perform(Command: UTF8String; Player: TPlayer);
+// var
+//    Tokens, OriginalTokens: TTokens;
+//    CurrentToken: Cardinal;
+
+
    function CanEnd(): Boolean;
    begin
       Result := (CurrentToken >= Length(Tokens)) or
                 (Tokens[CurrentToken] = 'then') or
                 (Tokens[CurrentToken] = 'and') or
                 (Tokens[CurrentToken] = ';') or
+                (Tokens[CurrentToken] = '.') or
                 ((CurrentToken+1 < Length(Tokens)) and
                  (Tokens[CurrentToken] = ',') and
                  ((Tokens[CurrentToken+1] = 'then') or
@@ -49,34 +58,42 @@
       Assert(CanEnd());
       if (CurrentToken < Length(Tokens)) then
       begin
-         if (Tokens[CurrentToken] = ';') then
+         if (Tokens[CurrentToken] = '.') then
          begin
             Inc(CurrentToken);
-            if (CurrentToken >= Length(Tokens)) then
-               Fail('I don''t understand your use of semicolons.');
+            Result := CurrentToken < Length(Tokens);
          end
          else
-         if (Tokens[CurrentToken] = ',') then
          begin
-            Inc(CurrentToken);
-            if (CurrentToken >= Length(Tokens)) then
-               raise Exception.Create('Found inconsistency between CanEnd() and GetContinuation() when parsing comma in "' + Command + '".');
+            if (Tokens[CurrentToken] = ';') then
+            begin
+               Inc(CurrentToken);
+               if (CurrentToken >= Length(Tokens)) then
+                  Fail('I don''t understand your use of semicolons.');
+            end
+            else
+            if (Tokens[CurrentToken] = ',') then
+            begin
+               Inc(CurrentToken);
+               if (CurrentToken >= Length(Tokens)) then
+                  raise Exception.Create('Found inconsistency between CanEnd() and GetContinuation() when parsing comma in "' + Command + '".');
+            end;
+            if (Tokens[CurrentToken] = 'and') then
+            begin
+               Inc(CurrentToken);
+               SkipComma();
+               if (CurrentToken >= Length(Tokens)) then
+                  Fail('And what?');
+            end;
+            if (Tokens[CurrentToken] = 'then') then
+            begin
+               Inc(CurrentToken);
+               SkipComma();
+               if (CurrentToken >= Length(Tokens)) then
+                  Fail('Then what?');
+            end;
+            Result := True;
          end;
-         if (Tokens[CurrentToken] = 'and') then
-         begin
-            Inc(CurrentToken);
-            SkipComma();
-            if (CurrentToken >= Length(Tokens)) then
-               Fail('And what?');
-         end;
-         if (Tokens[CurrentToken] = 'then') then
-         begin
-            Inc(CurrentToken);
-            SkipComma();
-            if (CurrentToken >= Length(Tokens)) then
-               Fail('Then what?');
-         end;
-         Result := True;
       end
       else
          Result := False;
@@ -240,7 +257,7 @@
          Target := Location as TLocation;
    end;
    {$ENDIF}
-      
+
    { You can assume that either CanEnd() is true or EnsureNoPunctuation() has been called just before this returns }
    { Do not call if CanEnd(). }
    function GetThing(out Thing: TThing; EndingClauses: TEndingClauseKinds; VerbString: UTF8String): Boolean;
@@ -309,7 +326,7 @@
             end;
             Inc(CurrentToken, Count);
             if (Disambiguate) then
-               Player.AutoDisambiguated(Things.GetLongDefiniteString(PLayer, 'and')); // XXX should really let the caller do that
+               Player.AutoDisambiguated(Things.GetLongDefiniteString(Player, 'and')); // XXX should really let the caller do that
          except
             { in case we fail }
             Things.Free();
@@ -374,6 +391,147 @@
    function GetPrepositionThing(Preposition: UTF8String; EndingClauses: TEndingClauseKinds; VerbString: UTF8String; out Thing: TThing): Boolean;
    begin
       Result := GetCompoundPrepositionThing([Preposition], EndingClauses, VerbString, Preposition, Thing);
+   end;
+
+   function GetDirection(var Action: TAction): Boolean;
+   begin
+      if (TryDirection(Action.GoDirection, [optAllowDefiniteArticle])) then
+      begin
+         Result := True;
+         Action.Verb := avGo;
+         if (not CanEnd()) then
+         begin
+            EnsureNoPunctuation();
+            Fail('I don''t understand how to go ' + CardinalDirectionToString(Action.GoDirection) + ' "' + OriginalTokens[CurrentToken] + '".');
+         end;
+      end
+      else
+         Result := False;
+   end;
+
+   function GetInventory(var Action: TAction): Boolean;
+   begin
+      // lone "i" is handled in GetSelfDescriptionOrConsumeLeadingI()
+      if (Tokens[CurrentToken] = 'inventory') then
+      begin
+         Inc(CurrentToken);
+         Result := True;
+         Action.Verb := avInventory;
+         if (not CanEnd()) then
+         begin
+            EnsureNoPunctuation();
+            Fail('I don''t understand how to inventory "' + OriginalTokens[CurrentToken] + '".');
+         end;
+      end
+      else
+         Result := False;
+   end;
+
+   function GetSelfDescriptionOrConsumeLeadingI(var Action: TAction): Boolean;
+   var
+      Pronouns: TPronouns;
+
+      function GetPronouns(Word1, Word2: String; CandidatePronouns: TPronouns): Boolean;
+      begin
+         if (Tokens[CurrentToken] = Word1) then
+         begin
+            Inc(CurrentToken);
+            if ((not CanEnd()) and (Tokens[CurrentToken] = Word2)) then
+            begin
+               Inc(CurrentToken);
+            end;
+            Pronouns := CandidatePronouns;
+            Result := True;
+         end
+         else
+         if (Tokens[CurrentToken] = Word1 + '/' + Word2) then
+         begin
+            Inc(CurrentToken);
+            Pronouns := CandidatePronouns;
+            Result := True;
+         end
+         else
+            Result := False;
+      end;
+
+   begin
+      if (Tokens[CurrentToken] = 'i') then
+      begin
+         Inc(CurrentToken);
+         if (CanEnd()) then
+         begin
+            Result := True;
+            Action.Verb := avInventory;
+         end
+         else
+         if (Tokens[CurrentToken] = 'use') then
+         begin
+            Inc(CurrentToken);
+            if (CanEnd()) then
+            begin
+               Fail('You use what?');
+            end
+            else
+            if (Tokens[CurrentToken] = 'singular') then
+            begin
+               Inc(CurrentToken);
+               if (CanEnd()) then
+               begin
+                  Fail('You use singular what?');
+               end
+               else
+               if (not GetPronouns('they', 'them', pSingularThey)) then
+               begin
+                  EnsureNoPunctuation();
+                  Fail('I don''t understand what it means to use singular "' + OriginalTokens[CurrentToken] + '".');
+               end;
+            end
+            else
+            if (Tokens[CurrentToken] = 'plural') then
+            begin
+               Inc(CurrentToken);
+               if (CanEnd()) then
+               begin
+                  Fail('You use plural what?');
+               end
+               else
+               if (not GetPronouns('they', 'them', pPluralThey)) then
+               begin
+                  EnsureNoPunctuation();
+                  Fail('I don''t understand what it means to use plural "' + OriginalTokens[CurrentToken] + '".');
+               end;
+            end
+            else
+            if (not GetPronouns('he', 'him', pHe) and
+                not GetPronouns('she', 'her', pShe) and
+                not GetPronouns('they', 'them', pSingularThey) and
+                not GetPronouns('it', 'its', pIt) and
+                not GetPronouns('ze', 'zem', pZe)) then
+            begin
+               EnsureNoPunctuation();
+               Fail('I don''t understand what it means to use "' + OriginalTokens[CurrentToken] + '".');
+            end;
+            if ((not CanEnd()) and (Tokens[CurrentToken] = 'pronouns')) then
+            begin
+               Inc(CurrentToken);
+            end;
+            if (not CanEnd()) then
+            begin
+               EnsureNoPunctuation();
+               Fail('I don''t understand what it means to use pronouns "' + OriginalTokens[CurrentToken] + '".');
+            end;
+            Result := True;
+            Action.Verb := avPronouns;
+            Action.Pronouns := Pronouns;
+         end
+         else
+         begin
+            // leading "i" is consumed; all subsequent parsers can therefore ignore it
+            Result := False;
+         end;
+      end
+      else
+         Result := False;
    end;
 
    function GetLook(var Action: TAction): Boolean;
@@ -512,23 +670,6 @@
          Result := False;
    end;
 
-   function GetInventory(var Action: TAction): Boolean;
-   begin
-      if (Tokens[CurrentToken] = 'inventory') or (Tokens[CurrentToken] = 'i') then
-      begin
-         Inc(CurrentToken);
-         Result := True;
-         Action.Verb := avInventory;
-         if (not CanEnd()) then
-         begin
-            EnsureNoPunctuation();
-            Fail('I don''t understand how to inventory "' + OriginalTokens[CurrentToken] + '".');
-         end;
-      end
-      else
-         Result := False;
-   end;
-
    function GetFind(var Action: TAction): Boolean;
    var
       Direction: TCardinalDirection;
@@ -573,17 +714,6 @@
          EnsureNoPunctuation();
          if (not TryDirection(Action.GoDirection, [])) then
             Fail('I don''t understand how to go "' + OriginalTokens[CurrentToken] + '".');
-         if (not CanEnd()) then
-         begin
-            EnsureNoPunctuation();
-            Fail('I don''t understand how to go ' + CardinalDirectionToString(Action.GoDirection) + ' "' + OriginalTokens[CurrentToken] + '".');
-         end;
-      end
-      else
-      if (TryDirection(Action.GoDirection, [optAllowDefiniteArticle])) then
-      begin
-         Result := True;
-         Action.Verb := avGo;
          if (not CanEnd()) then
          begin
             EnsureNoPunctuation();
@@ -654,12 +784,68 @@
          Result := False;
    end;
 
+   function GetClimb(var Action: TAction): Boolean;
+   var
+      Details: TSubjectiveInformation;
+   begin
+      if (Tokens[CurrentToken] = 'climb') then
+      begin
+         Inc(CurrentToken);
+         if (CanEnd()) then
+         begin
+            Action.Verb := avGo;
+            Action.GoDirection := cdUp;
+            Result := True;
+         end
+         else
+         if (GetPrepositionThing('onto', [], 'climb', Action.ClimbOnSubject) or
+             GetPrepositionThing('on', [], 'climb', Action.ClimbOnSubject) or
+             GetCompoundPrepositionThing(['on', 'to'], [], 'climb', 'onto', Action.ClimbOnSubject) or
+             GetThing(Action.ClimbOnSubject, [], 'climb')) then
+         begin
+            Action.Verb := avClimbOn;
+            if (not CanEnd()) then
+               Fail('I don''t understand how to climb onto things "' + OriginalTokens[CurrentToken] + '".');
+            Details := Player.Locate(Action.ClimbOnSubject);
+            Action.EnterRequiredAbilities := Details.RequiredAbilitiesToNavigate;
+            Result := True;
+         end
+         else
+         if (GetPrepositionThing('into', [], 'climb', Action.EnterSubject) or
+             GetPrepositionThing('in', [], 'climb', Action.EnterSubject) or
+             GetCompoundPrepositionThing(['in', 'to'], [], 'climb', 'into', Action.EnterSubject)) then
+         begin
+            Action.Verb := avEnter;
+            if (not CanEnd()) then
+               Fail('I don''t understand how to climb into things "' + OriginalTokens[CurrentToken] + '".');
+            Details := Player.Locate(Action.EnterSubject);
+            Action.EnterRequiredAbilities := Details.RequiredAbilitiesToNavigate;
+            Result := True;
+         end
+         else
+         begin
+            Fail('I can''t see any "' + OriginalTokens[CurrentToken] + '" here to climb.');
+         end;
+      end
+      else
+         Result := False;
+   end;
+
    function GetTake(var Action: TAction): Boolean;
    var
       Direction: TCardinalDirection;
+      IsTake: Boolean = False;
+      Subject: TThing;
+      TransportationInstruction: TTransportationInstruction;
    begin
-      if ((Tokens[CurrentToken] = 'take') or
-          (Tokens[CurrentToken] = 'get') or
+      if (Tokens[CurrentToken] = 'take') then
+      begin
+         Result := True;
+         IsTake := True;
+         Inc(CurrentToken);
+      end
+      else
+      if ((Tokens[CurrentToken] = 'get') or
           (Tokens[CurrentToken] = 'grab') or
           (Tokens[CurrentToken] = 'carry')) then
       begin
@@ -676,7 +862,7 @@
       begin
          Result := False;
       end;
-      if (Result) then          
+      if (Result) then
       begin
          Action.Verb := avTake;
          Action.TakeSubject := nil;
@@ -694,6 +880,18 @@
          begin
             EnsureNoPunctuation();
             Fail('I don''t understand how to take things "' + OriginalTokens[CurrentToken] + '".');
+         end;
+         if (IsTake and (Action.TakeSubject.Length = 1)) then
+         begin
+            // check for "take taxi" or whatever
+            Subject := Action.TakeSubject.First;
+            TransportationInstruction := Subject.GetTransportationDestination(Player);
+            if (TransportationInstruction.TravelType <> ttNone) then
+            begin
+               Action.TakeSubject.Free();
+               Action.Verb := avUseTransportation;
+               Action.UseTransportationInstruction := TransportationInstruction;
+            end;
          end;
       end;
    end;
@@ -749,19 +947,12 @@
             if (Player.Position in tpContained) then
             begin
                Action.PutPosition := tpIn;
-               Action.PutTarget := Player.Parent.GetInside(Action.PutPosition)
-               {$IFOPT C+} ; Assert(Assigned(Action.PutTarget)); Action.PutTarget := Action.PutTarget {$ENDIF} // because otherwise, where are _we_??
-                                                                        .GetSurface();
-               Assert(Assigned(Action.PutTarget)); // things always have surfaces
             end
             else
             begin
                Action.PutPosition := tpOn;
-               Action.PutTarget := Player.Parent.GetRepresentative().GetSurface();
-               if (not Assigned(Action.PutTarget)) then
-                  Action.PutTarget := Player.Parent;
             end;
-            Assert(Assigned(Action.PutTarget));
+            Action.PutTarget := Player.Parent;
             if (Action.PutCare = psCarefully) then
                Player.AutoDisambiguated(ThingPositionToString(Action.PutPosition) + ' ' + Action.PutTarget.GetDefiniteName(Player));
          end
@@ -788,6 +979,7 @@
          begin
             Fail('I don''t understand how to ' + Verb + ' things "' + OriginalTokens[CurrentToken] + '".');
          end;
+         Assert(Assigned(Action.PutTarget));
       end;
    end;
 
@@ -833,23 +1025,23 @@
             Result := True;
          end
          else
-         if (not GetThings(Action.MoveSubject, [aisSurroundings, aisSelf], [eckIn, eckOn], 'move')) then
+         if (not GetThings(Action.RelocateSubject, [aisSurroundings, aisSelf], [eckIn, eckOn], 'move')) then
          begin
-            // Action.MoveSubject is not valid here, but that doesn't matter as we immediately throw.
+            // Action.RelocateSubject is not valid here, but that doesn't matter as we immediately throw.
             Fail('I can''t see any "' + OriginalTokens[CurrentToken] + '" here.');
+         end
+         else
+         if (CanEnd()) then
+         begin
+            Action.Verb := avRelocate;
+            // Action.RelocateSubject is set above
+            Result := True;
          end
          else
          begin
             Action.Verb := avMove;
-            // Action.MoveSubject is set above
-            Action.MoveAmbiguous := False; // we must Fail, set the MovePosition, or reset MoveAmbiguous to True before exitting this
+            Assert(@Action.MoveSubject = @Action.RelocateSubject); // Action.RelocateSubject is set above
             Result := True;
-            if (CanEnd()) then
-            begin
-               Action.MoveTarget := nil;
-               Action.MovePosition := tpOn;
-            end
-            else
             if (GetPrepositionThing('onto', [], 'move things', Action.MoveTarget) or
                 GetPrepositionThing('over', [], 'move things', Action.MoveTarget) or
                 GetCompoundPrepositionThing(['on', 'to'], [], 'move things', 'onto', Action.MoveTarget) or
@@ -873,9 +1065,9 @@
             else
             if (GetPrepositionThing('to', [], 'move things', Action.MoveTarget)) then
             begin
+               Action.MovePosition := tpAt;
                if (not CanEnd()) then
                   Fail('I don''t understand how to move things to other things "' + OriginalTokens[CurrentToken] + '".');
-               Action.MoveAmbiguous := True;
             end
             else
             if (Tokens[CurrentToken] = 'out') then
@@ -956,8 +1148,6 @@
    end;
 
    function GetPush(var Action: TAction): Boolean;
-   var
-      PositionOverride: TThingPosition;
    begin
       if (Tokens[CurrentToken] = 'push') then
       begin
@@ -983,7 +1173,6 @@
          begin
             Assert(@Action.PushSubject = @Action.MoveSubject);
             Action.Verb := avMove;
-            Action.MoveAmbiguous := False;
             Action.MovePosition := tpOn;
             if (not CanEnd()) then
                Fail('I don''t understand how to push things onto other things "' + OriginalTokens[CurrentToken] + '".');
@@ -997,7 +1186,6 @@
          begin
             Assert(@Action.PushSubject = @Action.MoveSubject);
             Action.Verb := avMove;
-            Action.MoveAmbiguous := False;
             Action.MovePosition := tpIn;
             if (not CanEnd()) then
                Fail('I don''t understand how to push things into other things "' + OriginalTokens[CurrentToken] + '".');
@@ -1005,25 +1193,9 @@
          else
          if (GetPrepositionThing('to', [], 'push things', Action.MoveTarget)) then
          begin
-            // XXX should probably change this to use MoveAmbiguous = True
-            PositionOverride := tpIn;
-            if (Assigned(Action.MoveTarget.GetInside(PositionOverride))) then
-            begin
-               // XXX could mention PositionOverride - '(inside hut, on floor)' - if we could also parse that
-               Player.AutoDisambiguated('inside ' + Action.MoveTarget.GetDefiniteName(Player));
-               Assert(@Action.PushSubject = @Action.MoveSubject);
-               Action.Verb := avMove;
-               Action.MoveAmbiguous := False;
-               Action.MovePosition := tpIn;
-            end
-            else
-            begin
-               Player.AutoDisambiguated('on ' + Action.MoveTarget.GetDefiniteName(Player));
-               Assert(@Action.PushSubject = @Action.MoveSubject);
-               Action.Verb := avMove;
-               Action.MoveAmbiguous := False;
-               Action.MovePosition := tpOn;
-            end;
+            Assert(@Action.PushSubject = @Action.MoveSubject);
+            Action.Verb := avMove;
+            Action.MovePosition := tpAt;
             if (not CanEnd()) then
                Fail('I don''t understand how to push things to other things "' + OriginalTokens[CurrentToken] + '".');
          end
@@ -1218,7 +1390,7 @@
          begin
             GotThing := GetThing(PotentialTarget, [], 'open');
             if (GotThing) then
-               Action.OpenTarget := PotentialTarget; 
+               Action.OpenTarget := PotentialTarget;
             if (not CanEnd()) then
             begin
                if (GotThing) then
@@ -1369,10 +1541,10 @@
                      Fail('I can''t see any "' + OriginalTokens[CurrentToken] + '" here. Use "debug things" to get a list of accessible things.');
                   end;
                   if (not CanEnd()) then
-                  begin      
+                  begin
                      EnsureNoPunctuation();
                      Fail('The word "' + OriginalTokens[CurrentToken] + '" doesn''t seem to be part of the name of ' + Action.DebugThings.GetLongDefiniteString(Player, 'or') + '; use "debug things" to get a list of accessible things if that isn''t what you meant.');
-                  end;       
+                  end;
                end;
             end
             else
@@ -1493,7 +1665,7 @@
                               Fail('Flags must be a space-separated list of one or more of: ' +
                                    Join(specialize ListValues<TLandmarkOption>(), ', ') +
                                    ' (default is "loAutoDescribe loPermissibleNavigationTarget").');
-                           end;      
+                           end;
                         end
                         else
                         begin
@@ -1514,7 +1686,7 @@
                   Fail('Syntax: debug connect <direction> [and back] [from <location>] to <thing or location> [with <flags>]');
                end;
             end
-            else     
+            else
             if (Tokens[CurrentToken] = 'classes') then
             begin
                Inc(CurrentToken);
@@ -1566,7 +1738,7 @@
                Inc(CurrentToken);
                Result := False;
                if (not CanEnd()) then
-               begin 
+               begin
                   if (Tokens[CurrentToken] = 'class') then
                   begin
                      Inc(CurrentToken);
@@ -1597,11 +1769,6 @@
                      Action.DebugDescribeEnumTypeInfo := nil;
                      if (not CanEnd()) then
                      begin
-                        if (OriginalTokens[CurrentToken] = 'Boolean') then
-                        begin
-                           Action.DebugDescribeEnumTypeInfo := TypeInfo(Boolean);
-                        end
-                        else
                         if (OriginalTokens[CurrentToken] = 'TCardinalDirection') then
                         begin
                            Action.DebugDescribeEnumTypeInfo := TypeInfo(TCardinalDirection);
@@ -1640,7 +1807,7 @@
                          end;
                      end;
                      if (not Result) then
-                        Fail('Syntax: "debug describe enum <enum>", where <enum> is one of "Boolean", "TCardinalDirection", "TThingMass", "TThingSize", "TThingPosition", "TLandmarkOption".');
+                        Fail('Syntax: "debug describe enum <enum>", where <enum> is one of "TCardinalDirection", "TThingMass", "TThingSize", "TThingPosition", "TLandmarkOption".');
                   end
                   else
                   begin
@@ -1701,11 +1868,16 @@
 
    function ParseAction(var Action: TAction): Boolean; { returns true if there's another action to parse }
    begin
-      if (GetLook(Action) or GetExamine(Action) or GetRead(Action) or GetInventory(Action) or GetFind(Action) or
-          GetGo(Action) or GetEnter(Action) or GetLeave(Action) or
+      // initial parsers get the full string, leading "i"s are not stripped
+      if (GetBug(Action) or GetHelp(Action) or // GetBug also handles debug commands in debug mode
+          GetInventory(Action) or GetDirection(Action) or
+          GetSelfDescriptionOrConsumeLeadingI(Action) or
+          // all subsequent parsers should be ok with an implicit leading "i", as in, "i go north"
+          GetLook(Action) or GetExamine(Action) or GetRead(Action) or GetFind(Action) or
+          GetGo(Action) or GetEnter(Action) or GetLeave(Action) or GetClimb(Action) or
           GetTake(Action) or GetPut(Action) or GetMove(Action) or GetPush(Action) or GetShake(Action) or GetDig(Action) or GetOpen(Action) or GetClose(Action) or
           GetTalk(Action) or GetDance(Action) or
-          GetBug(Action) or GetHelp(Action) or GetQuit(Action)) then
+          GetQuit(Action)) then
          Result := GetContinuation() { consumes the "next" and verifies there's something else coming }
       else
          Fail('I don''t understand how to "' + OriginalTokens[CurrentToken] + '".');

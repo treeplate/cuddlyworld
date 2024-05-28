@@ -5,7 +5,8 @@ unit world;
 interface
 
 uses
-   storable, lists, physics, player, grammarian;
+   storable, lists, physics, player, grammarian
+   {$IFDEF DEBUG}, textstream {$ENDIF};
 
 type
    TWorld = class(TStorable) // @RegisterStorableClass
@@ -20,7 +21,7 @@ type
       constructor Read(Stream: TReadStream); override;
       procedure Write(Stream: TWriteStream); override;
       procedure AddLocation(Location: TLocation); { World will free these }
-      procedure AddGlobalThing(GlobalThing: TThing); { World will free these }
+      procedure AddGlobalThing(GlobalThing: TThing); { World will free these } // XXX should we remove this? nothing seems to use it...
       procedure AddPlayer(Player: TPlayer); virtual; { these must added to the world before this method is called (derived classes can override this method to do that) }
       function GetPlayer(Name: UTF8String): TPlayer;
       function GetPlayerCount(): Cardinal;
@@ -30,17 +31,18 @@ type
       procedure SetDirty();
       procedure Saved();
       property Dirty: Boolean read FDirty;
+      {$IFOPT C+} procedure Dump(); {$ENDIF}
    end;
 
 implementation
 
 uses
    sysutils, thingseeker, properties, typinfo, thingdim // typinfo and thingdim are used in parser.inc
-   {$IFDEF DEBUG}, broadcast, textstream, typedump, arrayutils {$ENDIF}; // typedump and arrayutils are used in parser.inc
+   {$IFDEF DEBUG}, broadcast, typedump, arrayutils {$ENDIF}; // typedump and arrayutils are used in parser.inc
 
 var
    FailedCommandLog: Text;
-   GlobalThingCollector: TThingCollector; // from thingseeker; used in parser.inc
+   GlobalThingCollector: TThingCollector; // from thingseeker; used in parser.inc (unrelated to FGlobalThings)
 
 type
    TDirectPlayerPropertyDescriber = class(TPropertyDescriber)
@@ -54,7 +56,7 @@ type
 constructor TDirectPlayerPropertyDescriber.Create(Player: TPlayer);
 begin
    FPlayer := Player;
-end;      
+end;
 
 procedure TDirectPlayerPropertyDescriber.AddProperty(Name: UTF8String; PropertyType: UTF8String);
 begin
@@ -201,6 +203,7 @@ begin
              avPut: Action.PutSubject.Free();
              avMove: Action.MoveSubject.Free();
              avPush: Action.PushSubject.Free();
+             avRelocate: Action.RelocateSubject.Free();
              avRemove: Action.RemoveSubject.Free();
              avPress: Action.PressSubject.Free();
              avShake: Action.ShakeSubject.Free();
@@ -261,8 +264,8 @@ procedure TWorld.ExecuteAction(const Action: TAction; Player: TPlayer);
          if (Location.HasLandmark(Direction)) then
          begin
             Fail('Cannot connect the ' + CardinalDirectionToString(Direction) + ' exit of ' + Location.GetDefiniteName(Player) + ', ' + Location.GetAtomForDirectionalNavigation(Direction).GetLongDefiniteName(Player) + ' is already in that direction.');
-         end;    
-      end;       
+         end;
+      end;
       Location.AddLandmark(Direction, Target, Options);
       if (loPermissibleNavigationTarget in Options) then
       begin
@@ -288,10 +291,36 @@ procedure TWorld.ExecuteAction(const Action: TAction; Player: TPlayer);
    end;
    
    procedure DoDebugMake(Data: UTF8String);
+
+      function CreationHandler(AClass: TClass; Stream: TTextStream): TObject;
+      begin
+         Result := MakeAtomFromStream(AClass, Stream);
+         if (Result is TLocation) then
+         begin
+            AddLocation(TLocation(Result));
+            Player.SendMessage('Hocus Pocus! ' + Capitalise(TLocation(Result).GetDefiniteName(Player)) + ' now exists.');
+         end
+         else
+         if (Result is TThing) then
+         begin
+            Player.SendMessage('Poof! ' + Capitalise(TThing(Result).GetIndefiniteName(Player)) + ' manifests.');
+         end
+         else
+         if (Result is TAtom) then
+         begin
+            Assert(False); // Should not be possible
+            Fail('You create ' + TAtom(Result).GetIndefiniteName(Player) + ', but then, for lack of anything better to do, ' + TAtom(Result).GetLongDefiniteName(Player) + ' vanishes. You hear a horrifying sound that speaks to unexpected damage to the time-space continuum.');
+         end
+         else
+         begin
+            Assert(False); // Should not be possible
+            Fail('You create something undescribable. You hear a horrifying sound that speaks to unexpected damage to the time-space continuum.');
+         end;
+      end;
+   
    var
       Creation: TAtom;
       Stream: TTextStream;
-      Message: UTF8String;
       LocationA: TLocation;
       LocationB: TAtom;
       Direction: TCardinalDirection;
@@ -301,7 +330,7 @@ procedure TWorld.ExecuteAction(const Action: TAction; Player: TPlayer);
       Assert(Length(Data) >= 2);
       Assert(Data[1] = '"');
       Assert(Data[Length(Data)] = '"');
-      Stream := TTextStreamFromString.Create(Copy(Data, 2, Length(Data) - 2), @GetRegisteredAtomClass, @MakeAtomFromStream);
+      Stream := TTextStreamFromString.Create(Copy(Data, 2, Length(Data) - 2), @GetRegisteredAtomClass, @CreationHandler);
       try
          repeat
             if (Stream.PeekIdentifier() = 'new') then
@@ -313,12 +342,6 @@ procedure TWorld.ExecuteAction(const Action: TAction; Player: TPlayer);
                      Fail('The incantation fizzles as you hear a voice whisper "' + Error.Message + '".');
                end;
                Assert(Assigned(Creation));
-               if (Creation is TLocation) then
-               begin
-                  AddLocation(TLocation(Creation));
-                  Player.SendMessage('Hocus Pocus! ' + Capitalise(Creation.GetDefiniteName(Player)) + ' now exists.');
-               end
-               else
                if (Creation is TThing) then
                begin
                   Player.Add(TThing(Creation), tpCarried);
@@ -326,14 +349,6 @@ procedure TWorld.ExecuteAction(const Action: TAction; Player: TPlayer);
                               [C(M(@Player.GetDefiniteName)), SP,
                                MP(Player, M('manifests'), M('manifest')), SP,
                                M(@Creation.GetIndefiniteName), M('.')]);
-                  Player.SendMessage('Poof! ' + TThing(Creation).GetPresenceStatement(Player, psThereIsAThingHere));
-               end
-               else
-               begin
-                  Assert(False); // Should not be possible
-                  Message := 'You create ' + Creation.GetIndefiniteName(Player) + ', but then, for lack of anything better to do, ' + Creation.GetLongDefiniteName(Player) + ' vanishes.';
-                  Creation.Free(); // XXX this will leave an invalid pointer in the named object table if the creation was named
-                  Fail(Message);
                end;
                if (Stream.PeekToken() <> tkEndOfFile) then
                   Stream.ExpectPunctuation(';');
@@ -347,7 +362,7 @@ procedure TWorld.ExecuteAction(const Action: TAction; Player: TPlayer);
                Stream.ExpectPunctuation(',');
                LocationB := Stream.specialize GetObject<TAtom>();
                Stream.ExpectPunctuation(',');
-               Options := Stream.specialize GetSet<TLandmarkOptions>();
+               Options := Stream.specialize GetSet<TLandmarkOptions>(); // might be empty!
                if (Stream.PeekPunctuation() = ',') then
                begin
                   Stream.ExpectPunctuation(',');
@@ -419,6 +434,7 @@ procedure TWorld.ExecuteAction(const Action: TAction; Player: TPlayer);
          'This is a pretty conventional MUD. You can move around using cardinal directions, e.g. "north", "east", "south", "west". You can shorten these to "n", "e", "s", "w". To look around, you can say "look", which can be shortened to "l". ' + 'To see what you''re holding, ask for your "inventory", which can be shortened to "i".' + #10 +
          'More elaborate constructions are also possible. You can "take something", or "put something in something else", for instance.' + #10 +
          'You can talk to other people by using "say", e.g. "say ''how are you?'' to Fred".' + #10 +
+         'You can set your pronouns using "i use ... pronouns"; supported pronouns are he/him, she/her, it/its, ze/zer, they/them, and plural they/them.' + #10 +
          'If you find a bug, you can report it by saying "bug ''something''", for example, "bug ''the description of the camp says i can go north, but when i got north it says i cannot''". ' + 'Please be descriptive and include as much information as possible about how to reproduce the bug. Thanks!' + #10 +
          'Have fun!'
       );
@@ -432,7 +448,7 @@ procedure TWorld.ExecuteAction(const Action: TAction; Player: TPlayer);
 begin
    case Action.Verb of
     avLook: Player.DoLook();
-    avLookDirectional: Player.SendMessage(Player.Parent.GetRepresentative().GetLookTowardsDirection(Player, Action.LookDirection));
+    avLookDirectional: Player.SendMessage(Player.GetLookTowardsDirection(Player, Action.LookDirection));
     avLookAt: Player.SendMessage(Action.LookAtSubject.GetLookAt(Player));
     avExamine: Player.SendMessage(Action.ExamineSubject.GetExamine(Player));
     avRead: Player.SendMessage(Action.ReadSubject.GetDescriptionWriting(Player));
@@ -443,10 +459,12 @@ begin
     avGo: Player.DoNavigation(Action.GoDirection);
     avEnter: Player.DoNavigation(Action.EnterSubject, tpIn, Action.EnterRequiredAbilities);
     avClimbOn: Player.DoNavigation(Action.ClimbOnSubject, tpOn, Action.ClimbOnRequiredAbilities);
+    avUseTransportation: Player.DoNavigation(Action.UseTransportationInstruction);
     avTake: Player.DoTake(Action.TakeSubject);
     avPut: Player.DoPut(Action.PutSubject, Action.PutTarget, Action.PutPosition, Action.PutCare);
-    avMove: Player.DoMove(Action.MoveSubject, Action.MoveTarget, Action.MoveAmbiguous, Action.MovePosition);
-    avPush: Player.DoPush(Action.PushSubject, Action.PushDirection);
+    avRelocate: Player.DoRelocate(Action.RelocateSubject);
+    avMove: Player.DoMove(Action.MoveSubject, Action.MoveTarget, Action.MovePosition);
+    avPush: Player.DoPushDirectional(Action.PushSubject, Action.PushDirection);
     avRemove: Player.DoRemove(Action.RemoveSubject, Action.RemoveFromPosition, Action.RemoveFromObject);
     avPress: Player.DoPress(Action.PressSubject);
     avShake: Player.DoShake(Action.ShakeSubject);
@@ -456,6 +474,7 @@ begin
     avClose: Player.DoClose(Action.CloseTarget);
     avTalk: Player.DoTalk(Action.TalkTarget, Action.TalkMessage^, Action.TalkVolume);
     avDance: Player.DoDance();
+    avPronouns: Player.DoSetPronouns(Action.Pronouns);
     {$IFDEF DEBUG}
     avDebugStatus: Player.DoDebugStatus();
     avDebugLocations: DoDebugLocations();
@@ -475,7 +494,35 @@ begin
     raise Exception.Create('Unknown verb in ExecuteAction(): ' + IntToStr(Ord(Action.Verb)));
    end;
 end;
-   
+
+{$IFOPT C+}
+procedure TWorld.Dump();
+var
+   Depth: Cardinal = 0;
+
+   procedure ThingDumper(Thing: TThing);
+   var
+      Index: Cardinal;
+   begin
+      for Index := 0 to Depth do
+         System.Write(' ');
+      Writeln(Thing.GetDefiniteName(nil));
+      Inc(Depth);
+      Thing.WalkChildren(@ThingDumper);
+      Dec(Depth);
+   end;
+
+var
+   Location: TLocation;
+begin
+   for Location in FLocations do
+   begin
+      Writeln(Location.GetDefiniteName(nil));
+      Location.WalkChildren(@ThingDumper);
+   end;
+end;
+{$ENDIF}
+
 initialization
 {$INCLUDE registrations/world.inc}
    Assign(FailedCommandLog, 'failed-commands.log');

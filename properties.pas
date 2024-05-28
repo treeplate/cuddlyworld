@@ -8,29 +8,34 @@ const // keywords used as property names in "debug make" commands
    pnBackDescription = 'backDescription';
    pnBackSide = 'backSide';
    pnCannotMoveExcuse = 'cannotMoveExcuse';
+   pnCannotPlaceExcuse = 'cannotPlaceExcuse';
    pnChild = 'child';
    pnDefiniteName = 'definiteName';
    pnDescription = 'description';
    pnDestination = 'destination';
+   pnDirection = 'direction';
    pnDoor = 'door';
    pnFindDescription = 'findDescription';
-   pnFrontDirection = 'frontDirection';
    pnFrontDescription = 'frontDescription';
+   pnFrontDirection = 'frontDirection';
    pnFrontSide = 'frontSide';
    pnGround = 'ground';
+   pnHole = 'hole';
    pnIndefiniteName = 'indefiniteName';
    pnIngredients = 'ingredients';
+   pnLandmark = 'landmark';
    pnMass = 'mass';
-   pnSource = 'source';
    pnMaxSize = 'maxSize';
    pnName = 'name';
-   pnLandmark = 'landmark';
    pnOpened = 'opened';
-   pnPattern = 'pattern';
+   pnOpenable = 'openable';
    pnPassageWay = 'passageWay';
+   pnPattern = 'pattern';
    pnPileClass = 'pileClass';
    pnPosition = 'position';
    pnSize = 'size';
+   pnSource = 'source';
+   pnStairs = 'stairs';
    pnSurface = 'surface';
    pnUnderDescription = 'underDescription';
    pnWriting = 'writing';
@@ -44,6 +49,7 @@ const // keywords used as property types in "debug describe TFoo" commands
    ptDoorSide = 'atom:TDoorSide';
    ptLocation = 'atom:TLocation';
    ptThing = 'atom:TThing';
+   ptHole = 'atom:THole';
 
    // special syntax
    ptIngredients = 'ingredients';

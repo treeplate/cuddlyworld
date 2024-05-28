@@ -58,9 +58,9 @@ type
     protected
       function GetBelow(): TAtom; virtual;
     public
-      function CanInsideHold(const Manifest: TThingSizeManifest): Boolean; override;
+      function CanInsideHold(const Manifest: TThingSizeManifest; const ManifestCount: Integer): Boolean; override;
       function CanPut(Thing: TThing; ThingPosition: TThingPosition; Care: TPlacementStyle; Perspective: TAvatar; var Message: TMessage): Boolean; override;
-      procedure Put(Thing: TThing; Position: TThingPosition; Care: TPlacementStyle; Perspective: TAvatar); override;
+      procedure Put(Thing: TThing; ThingPosition: TThingPosition; Care: TPlacementStyle; Perspective: TAvatar); override;
    end;
 
    TBackdrop = class(TProxyLocation) // @RegisterStorableClass
@@ -110,6 +110,7 @@ var
    Name: UTF8String;
    DefiniteName, IndefiniteName, Description: UTF8String;
    StreamedLandmarks: TStreamedLandmarks;
+   StreamedChildren: TStreamedChildren;
 begin
    while (not Properties.Done) do
    begin
@@ -117,12 +118,14 @@ begin
           Properties.HandleUniqueStringProperty(pnDefiniteName, DefiniteName) and
           Properties.HandleUniqueStringProperty(pnIndefiniteName, IndefiniteName) and
           Properties.HandleUniqueStringProperty(pnDescription, Description) and
-          HandleLandmarkProperties(Properties, StreamedLandmarks)) then
+          HandleLandmarkProperties(Properties, StreamedLandmarks) and
+          HandleChildProperties(Properties, StreamedChildren)) then
        Properties.FailUnknownProperty();
    end;
    Properties.EnsureSeen([pnName, pnDefiniteName, pnIndefiniteName, pnDescription]);
    Result := Create(Name, DefiniteName, IndefiniteName, Description);
    StreamedLandmarks.Apply(Result);
+   StreamedChildren.Apply(Result);
 end;
 
 class procedure TNamedLocation.DescribeProperties(Describer: TPropertyDescriber);
@@ -132,6 +135,7 @@ begin
    Describer.AddProperty(pnIndefiniteName, ptString);
    Describer.AddProperty(pnDescription, ptString);
    Describer.AddProperty(pnLandmark, ptLandmark);
+   Describer.AddProperty(pnChild, ptChild);
 end;
 
 function TNamedLocation.GetName(Perspective: TAvatar): UTF8String;
@@ -179,17 +183,20 @@ var
    Source: TThing;
    Position: TThingPosition;
    StreamedLandmarks: TStreamedLandmarks;
+   StreamedChildren: TStreamedChildren;
 begin
    while (not Properties.Done) do
    begin
       if (TThing.HandleUniqueThingProperty(Properties, pnSource, Source, TThing) and {BOGUS Hint: Local variable "Source" does not seem to be initialized}
           Properties.specialize HandleUniqueEnumProperty<TThingPosition>(pnPosition, Position) and {BOGUS Hint: Local variable "Position" does not seem to be initialized}
-          HandleLandmarkProperties(Properties, StreamedLandmarks)) then
+          HandleLandmarkProperties(Properties, StreamedLandmarks) and
+          HandleChildProperties(Properties, StreamedChildren)) then
        Properties.FailUnknownProperty();
    end;
    Properties.EnsureSeen([pnSource, pnPosition]);
    Result := Create(Source, Position);
    StreamedLandmarks.Apply(Result);
+   StreamedChildren.Apply(Result);
 end;
 
 class procedure TProxyLocation.DescribeProperties(Describer: TPropertyDescriber);
@@ -197,6 +204,7 @@ begin
    Describer.AddProperty(pnSource, ptThing);
    Describer.AddProperty(pnPosition, ptThingPosition);
    Describer.AddProperty(pnLandmark, ptLandmark);
+   Describer.AddProperty(pnChild, ptChild);
 end;
 
 function TProxyLocation.GetName(Perspective: TAvatar): UTF8String;
@@ -244,9 +252,9 @@ end;
 {$UNDEF SUPERCLASS}
 {$UNDEF PART}
 
-function TAirLocation.CanInsideHold(const Manifest: TThingSizeManifest): Boolean;
+function TAirLocation.CanInsideHold(const Manifest: TThingSizeManifest; const ManifestCount: Integer): Boolean;
 begin
-   Result := CanSurfaceHold(Manifest);
+   Result := CanSurfaceHold(Manifest, ManifestCount);
 end;
 
 function TAirLocation.CanPut(Thing: TThing; ThingPosition: TThingPosition; Care: TPlacementStyle; Perspective: TAvatar; var Message: TMessage): Boolean;
@@ -258,24 +266,31 @@ begin
       Result := inherited; // at time of writing, this would always throw, since the superclass asserts that ThingPosition is tpOn or tpIn
 end;
 
-procedure TAirLocation.Put(Thing: TThing; Position: TThingPosition; Care: TPlacementStyle; Perspective: TAvatar);
+procedure TAirLocation.Put(Thing: TThing; ThingPosition: TThingPosition; Care: TPlacementStyle; Perspective: TAvatar);
 var
    Below: TAtom;
 begin
    Below := GetBelow();
    Assert(Assigned(Below));
    DoBroadcastAll([Perspective, Self, Thing, Below], [C(M(@Thing.GetDefiniteName)), SP, MP(Thing, M('falls to'), M('fall to')), SP, M(@Below.GetDefiniteName)]);
-   Below.Put(Thing, Position, Care, Perspective);
+   Below.Put(Thing, ThingPosition, Care, Perspective);
 end;
 
 function TAirLocation.GetBelow(): TAtom;
+var
+   Landmark: TDirectionalLandmark;
 begin
-   Assert(Length(FDirectionalLandmarks[cdDown]) > 0);
-   Assert(loPermissibleNavigationTarget in FDirectionalLandmarks[cdDown][0].Options);
-   Result := FDirectionalLandmarks[cdDown][0].Atom.GetSurface();
-   if (not Assigned(Result)) then
-      Result := FDirectionalLandmarks[cdDown][0].Atom;
-   Assert(Assigned(Result));
+   for Landmark in FLandmarks do
+   begin
+      if ((Landmark.Direction = cdDown) and (loPermissibleNavigationTarget in Landmark.Options)) then
+      begin
+         Result := Landmark.Atom.GetSurface();
+         if (not Assigned(Result)) then
+            Result := Landmark.Atom;
+         Exit;
+      end;
+   end;
+   Assert(False);
 end;
 
 

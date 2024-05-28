@@ -26,7 +26,7 @@ type
       function GetLongName(Perspective: TAvatar): UTF8String; override;
       function IsPlural(Perspective: TAvatar): Boolean; override;
       function IsExplicitlyReferencedThing(Tokens: TTokens; Start: Cardinal; Perspective: TAvatar; out Count: Cardinal; out GrammaticalNumber: TGrammaticalNumber): Boolean; override;
-      {$IFDEF DEBUG} function Debug(): UTF8String; override; {$ENDIF}
+      {$IFDEF DEBUG} function Debug(Perspective: TAvatar): UTF8String; override; {$ENDIF}
       property Plural: Boolean read FPlural write FPlural;
    end;
 
@@ -64,6 +64,7 @@ type
    TDescribedPhysicalThing = class(TPhysicalThing) // @RegisterStorableClass
     protected
       FDescription: UTF8String;
+      FCannotPlaceExcuse: UTF8String;
       class function CreateFromProperties(Properties: TTextStreamProperties): TDescribedPhysicalThing; override;
     public
       constructor Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String; AMass: TThingMass; ASize: TThingSize);
@@ -71,15 +72,32 @@ type
       procedure Write(Stream: TWriteStream); override;
       class procedure DescribeProperties(Describer: TPropertyDescriber); override;
       function GetDescriptionSelf(Perspective: TAvatar): UTF8String; override;
+      function CanPut(Thing: TThing; ThingPosition: TThingPosition; Care: TPlacementStyle; Perspective: TAvatar; var Message: TMessage): Boolean; override;
+      property CannotPlaceExcuse: UTF8String read FCannotPlaceExcuse write FCannotPlaceExcuse; // if not '', CanPut returns False
    end;
 
-   // Things that are really just aspects of other things
+   // Things that are really just aspects of other things and are typically very small and light
    TFeature = class(TDescribedPhysicalThing) // @RegisterStorableClass
     protected
       class function CreateFromProperties(Properties: TTextStreamProperties): TFeature; override;
     public
-      constructor Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String);
+      constructor Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String; AMass: TThingMass = tmLight; ASize: TThingSize = tsSmall);
       class procedure DescribeProperties(Describer: TPropertyDescriber); override;
+      function GetRepresentative(): TAtom; override;
+      function GetSurface(): TThing; override;
+      function CanMove(Perspective: TAvatar; var Message: TMessage): Boolean; override;
+   end;
+
+   // Things that are really just the room itself, or aspects thereof; the inside is the parent
+   TLocationRepresentative = class(TDescribedPhysicalThing) // @RegisterStorableClass
+    protected
+      class function CreateFromProperties(Properties: TTextStreamProperties): TLocationRepresentative; override;
+    public
+      constructor Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String; AMass: TThingMass = tmLudicrous; ASize: TThingSize = tsLudicrous);
+      class procedure DescribeProperties(Describer: TPropertyDescriber); override;
+      function GetRepresentative(): TAtom; override;
+      function GetInside(var PositionOverride: TThingPosition): TThing; override;
+      function GetSurface(): TThing; override;
       function CanMove(Perspective: TAvatar; var Message: TMessage): Boolean; override;
    end;
 
@@ -107,7 +125,7 @@ type
    end;
 
    // Things that don't change and don't move but that provide a portal to other locations
-   TLocationProxy = class(TScenery)
+   TLocationProxy = class abstract(TScenery)
     protected
       FDestination: TLocation;
       class function CreateFromProperties(Properties: TTextStreamProperties): TLocationProxy; override;
@@ -117,24 +135,33 @@ type
       procedure Write(Stream: TWriteStream); override;
       class procedure DescribeProperties(Describer: TPropertyDescriber); override;
       function GetDescriptionDirectional(Perspective: TAvatar; Mode: TGetPresenceStatementMode; Direction: TCardinalDirection): UTF8String; override;
-      function GetEntrance(Traveller: TThing; Direction: TCardinalDirection; Perspective: TAvatar; var PositionOverride: TThingPosition; var DisambiguationOpening: TThing; var Message: TMessage; NotificationList: TAtomList): TAtom; override;
-      function GetInside(var PositionOverride: TThingPosition): TThing; override;
-      function IsOpen(): Boolean; override;
+   end;
+
+   TPath = class(TLocationProxy) // @RegisterStorableClass
+    protected
+      class function CreateFromProperties(Properties: TTextStreamProperties): TPath; override;
+    public
+      constructor Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String; Destination: TLocation; ASize: TThingSize);
+      class procedure DescribeProperties(Describer: TPropertyDescriber); override;
+      function GetTransportationDestination(Perspective: TAvatar): TTransportationInstruction; override;
    end;
 
    TOpening = class(TLocationProxy) // @RegisterStorableClass
     protected
       class function CreateFromProperties(Properties: TTextStreamProperties): TOpening; override;
+      function CanEnter(Traveller: TThing; Direction: TCardinalDirection; Perspective: TAvatar; var Message: TMessage): Boolean; virtual;
     public
       constructor Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String; Destination: TLocation; ASize: TThingSize);
       class procedure DescribeProperties(Describer: TPropertyDescriber); override;
       function GetEntrance(Traveller: TThing; Direction: TCardinalDirection; Perspective: TAvatar; var PositionOverride: TThingPosition; var DisambiguationOpening: TThing; var Message: TMessage; NotificationList: TAtomList): TAtom; override;
+      function GetInside(var PositionOverride: TThingPosition): TThing; override;
+      function IsOpen(): Boolean; override;
       function GetLookUnder(Perspective: TAvatar): UTF8String; override;
       function CanMove(Perspective: TAvatar; var Message: TMessage): Boolean; override;
       function CanTake(Perspective: TAvatar; var Message: TMessage): Boolean; override;
       function CanShake(Perspective: TAvatar; var Message: TMessage): Boolean; override;
       function GetFeatures(): TThingFeatures; override;
-      function CanInsideHold(const Manifest: TThingSizeManifest): Boolean; override;
+      function CanInsideHold(const Manifest: TThingSizeManifest; const ManifestCount: Integer): Boolean; override;
    end;
 
    // The ground, mainly
@@ -145,7 +172,6 @@ type
       constructor Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String; AMass: TThingMass = tmLudicrous; ASize: TThingSize = tsLudicrous);
       class procedure DescribeProperties(Describer: TPropertyDescriber); override;
       function CanMove(Perspective: TAvatar; var Message: TMessage): Boolean; override;
-      function GetNavigationInstructions(Direction: TCardinalDirection; Child: TThing; Perspective: TAvatar; var MEssage: TMessage): TNavigationInstruction; override;
       function GetRepresentative(): TAtom; override;
    end;
 
@@ -155,27 +181,40 @@ type
     protected
       FHole: THole;
       {$IFOPT C+} procedure AssertChildPositionOk(Thing: TThing; APosition: TThingPosition); override; {$ENDIF}
+      class function CreateFromProperties(Properties: TTextStreamProperties): TEarthGround; override;
     public
+      constructor Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String; AMass: TThingMass = tmLudicrous; ASize: TThingSize = tsLudicrous; AHole: THole = nil);
       constructor Read(Stream: TReadStream); override;
       procedure Write(Stream: TWriteStream); override;
+      class procedure DescribeProperties(Describer: TPropertyDescriber); override;
       function GetDescriptionRemoteDetailed(Perspective: TAvatar; Direction: TCardinalDirection; LeadingPhrase: UTF8String; Options: TLeadingPhraseOptions): UTF8String; override;
       function GetLookIn(Perspective: TAvatar): UTF8String; override;
       function GetLookUnder(Perspective: TAvatar): UTF8String; override;
       function GetFeatures(): TThingFeatures; override;
       function Dig(Spade: TThing; Perspective: TAvatar; var Message: TMessage): Boolean; override;
       function GetInside(var PositionOverride: TThingPosition): TThing; override;
-      function CanInsideHold(const Manifest: TThingSizeManifest): Boolean; override;
+      function CanInsideHold(const Manifest: TThingSizeManifest; const ManifestCount: Integer): Boolean; override;
       function GetDescriptionNoInside(Perspective: TAvatar): UTF8String; override;
       procedure Removed(Thing: TThing); override;
    end;
 
-   // Open boxes, crates, etc
+   // Boxes, crates, etc
    TContainer = class(TDescribedPhysicalThing) // @RegisterStorableClass
+     protected
+      FOpenable: Boolean;
+      FOpen: Boolean;
+      class function CreateFromProperties(Properties: TTextStreamProperties): TContainer; override;
      public
+      constructor Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String; AOpen: Boolean = True; AOpenable: Boolean = False; AMass: TThingMass = tmLudicrous; ASize: TThingSize = tsLudicrous);
+      constructor Read(Stream: TReadStream); override;
+      procedure Write(Stream: TWriteStream); override;
+      class procedure DescribeProperties(Describer: TPropertyDescriber); override;
       function GetInside(var PositionOverride: TThingPosition): TThing; override;
-      function CanInsideHold(const Manifest: TThingSizeManifest): Boolean; override;
+      function CanInsideHold(const Manifest: TThingSizeManifest; const ManifestCount: Integer): Boolean; override;
       function IsOpen(): Boolean; override;
       function GetFeatures(): TThingFeatures; override;
+      function Open(Perspective: TAvatar; var Message: TMessage): Boolean; override;
+      function Close(Perspective: TAvatar; var Message: TMessage): Boolean; override;
    end;
 
    TSpade = class(TDescribedPhysicalThing) // @RegisterStorableClass
@@ -204,6 +243,12 @@ type
    TTree = class(TScenery) // @RegisterStorableClass
    end;
 
+   // Convenience constructor for TScenery that always has a CannotPlaceExcuse.
+   TStructure = class(TScenery) // @RegisterStorableClass
+    public
+      constructor Create(Name: UTF8String; Pattern: UTF8String; Description, ACannotPlaceExcuse: UTF8String);
+   end;
+
 
    // More complicated things
 
@@ -220,7 +265,7 @@ type
       function GetIntrinsicSize(): TThingSize; override;
       function GetOutsideSizeManifest(): TThingSizeManifest; override;
       function GetInside(var PositionOverride: TThingPosition): TThing; override;
-      function CanInsideHold(const Manifest: TThingSizeManifest): Boolean; override;
+      function CanInsideHold(const Manifest: TThingSizeManifest; const ManifestCount: Integer): Boolean; override;
       function IsOpen(): Boolean; override;
       function GetFeatures(): TThingFeatures; override;
    end;
@@ -238,6 +283,7 @@ type
       procedure Write(Stream: TWriteStream); override;
       class procedure DescribeProperties(Describer: TPropertyDescriber); override;
       function GetTitle(Perspective: TAvatar): UTF8String; override;
+      function GetHorizonDescription(Perspective: TAvatar): UTF8String; override;
       function GetPresenceStatement(Perspective: TAvatar; Mode: TGetPresenceStatementMode): UTF8String; override;
       function GetDescriptionState(Perspective: TAvatar): UTF8String; override;
       function GetDescriptionClosed(Perspective: TAvatar): UTF8String; override;
@@ -246,7 +292,7 @@ type
       function GetIntrinsicMass(): TThingMass; override;
       function GetIntrinsicSize(): TThingSize; override;
       function GetInside(var PositionOverride: TThingPosition): TThing; override;
-      function CanInsideHold(const Manifest: TThingSizeManifest): Boolean; override;
+      function CanInsideHold(const Manifest: TThingSizeManifest; const ManifestCount: Integer): Boolean; override;
       function CanMove(Perspective: TAvatar; var Message: TMessage): Boolean; override;
       function CanTake(Perspective: TAvatar; var Message: TMessage): Boolean; override;
       function CanShake(Perspective: TAvatar; var Message: TMessage): Boolean; override;
@@ -274,7 +320,7 @@ type
       function GetDescriptionEmpty(Perspective: TAvatar): UTF8String; override;
       function CanTake(Perspective: TAvatar; var Message: TMessage): Boolean; override;
       function GetInside(var PositionOverride: TThingPosition): TThing; override;
-      function CanInsideHold(const Manifest: TThingSizeManifest): Boolean; override;
+      function CanInsideHold(const Manifest: TThingSizeManifest; const ManifestCount: Integer): Boolean; override;
       function IsOpen(): Boolean; override;
    end;
 
@@ -390,6 +436,7 @@ begin
          FCachedLongName := FSingularPattern.GetCanonicalMatch(' ', CurrentFlags);
          Assert(FCachedLongName <> '', 'Couldn''t get a long name out of:'#10 + FSingularPattern.GetPatternDescription());
       end;
+      Assert(FCachedLongName <> '', 'Long name is empty.');
       FCachedLongNameMatcherFlags := CurrentFlags;
    end
    else
@@ -433,7 +480,7 @@ begin
 end;
 
 {$IFDEF DEBUG}
-function TNamedThing.Debug(): UTF8String;
+function TNamedThing.Debug(Perspective: TAvatar): UTF8String;
 begin
    Result := inherited;
    Result := Result + #10 +
@@ -470,7 +517,7 @@ begin
    while (not Properties.Done) do
    begin
       if (Properties.HandleUniqueStringProperty(pnName, Name) and
-          Properties.HandleUniqueStringProperty(pnPattern, Pattern) and    
+          Properties.HandleUniqueStringProperty(pnPattern, Pattern) and
           Properties.HandleUniqueStringProperty(pnDescription, Description) and
           HandleChildProperties(Properties, StreamedChildren)) then
          Properties.FailUnknownProperty();
@@ -567,12 +614,14 @@ constructor TDescribedPhysicalThing.Read(Stream: TReadStream);
 begin
    inherited;
    FDescription := Stream.ReadString();
+   FCannotPlaceExcuse := Stream.ReadString();
 end;
 
 procedure TDescribedPhysicalThing.Write(Stream: TWriteStream);
 begin
    inherited;
    Stream.WriteString(FDescription);
+   Stream.WriteString(FCannotPlaceExcuse);
 end;
 
 class function TDescribedPhysicalThing.CreateFromProperties(Properties: TTextStreamProperties): TDescribedPhysicalThing;
@@ -580,6 +629,7 @@ var
    Name: UTF8String;
    Pattern: UTF8String;
    Description: UTF8String;
+   CannotPlaceExcuseValue: UTF8String = '';
    MassValue: TThingMass;
    SizeValue: TThingSize;
    StreamedChildren: TStreamedChildren;
@@ -589,6 +639,7 @@ begin
       if (Properties.HandleUniqueStringProperty(pnName, Name) and
           Properties.HandleUniqueStringProperty(pnPattern, Pattern) and
           Properties.HandleUniqueStringProperty(pnDescription, Description) and
+          Properties.HandleUniqueStringProperty(pnCannotPlaceExcuse, CannotPlaceExcuseValue) and
           Properties.specialize HandleUniqueEnumProperty<TThingMass>(pnMass, MassValue) and {BOGUS Hint: Local variable "MassValue" does not seem to be initialized}
           Properties.specialize HandleUniqueEnumProperty<TThingSize>(pnSize, SizeValue) and {BOGUS Hint: Local variable "SizeValue" does not seem to be initialized}
           HandleChildProperties(Properties, StreamedChildren)) then
@@ -596,6 +647,7 @@ begin
    end;
    Properties.EnsureSeen([pnName, pnPattern, pnDescription, pnMass, pnSize]);
    Result := Create(Name, Pattern, Description, MassValue, SizeValue);
+   Result.CannotPlaceExcuse := CannotPlaceExcuseValue;
    StreamedChildren.Apply(Result);
 end;
 
@@ -604,6 +656,7 @@ begin
    Describer.AddProperty(pnName, ptString);
    Describer.AddProperty(pnPattern, ptPattern);
    Describer.AddProperty(pnDescription, ptString);
+   Describer.AddProperty(pnCannotPlaceExcuse, ptString);
    Describer.AddProperty(pnMass, ptMass);
    Describer.AddProperty(pnSize, ptSize);
    Describer.AddProperty(pnChild, ptChild);
@@ -614,10 +667,44 @@ begin
    Result := FDescription;
 end;
 
-
-constructor TFeature.Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String);
+function TDescribedPhysicalThing.CanPut(Thing: TThing; ThingPosition: TThingPosition; Care: TPlacementStyle; Perspective: TAvatar; var Message: TMessage): Boolean;
 begin
-   inherited Create(Name, Pattern, Description, tmLudicrous, tsLudicrous);
+   Assert(Message.IsValid);
+   if ((ThingPosition = tpOn) and (FCannotPlaceExcuse <> '')) then
+   begin
+      Result := False;
+      Message := TMessage.Create(mkBogus, FCannotPlaceExcuse);
+   end
+   else
+   begin
+      Result := inherited;
+   end;
+end;
+
+
+constructor TFeature.Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String; AMass: TThingMass = tmLight; ASize: TThingSize = tsSmall);
+begin
+   { needed for default values }
+   inherited;
+end;
+
+function TFeature.GetRepresentative(): TAtom;
+begin
+   Assert(Assigned(FParent));
+   Result := FParent;
+end;
+
+function TFeature.GetSurface(): TThing;
+begin
+   if (FParent is TThing) then
+   begin
+      Result := FParent as TThing;
+   end
+   else
+   begin
+      Assert(Assigned(FParent));
+      Result := FParent.GetSurface(); // might be nil
+   end;      
 end;
 
 function TFeature.CanMove(Perspective: TAvatar; var Message: TMessage): Boolean;
@@ -636,6 +723,8 @@ var
    Name: UTF8String;
    Pattern: UTF8String;
    Description: UTF8String;
+   MassValue: TThingMass = tmLight;
+   SizeValue: TThingSize = tsSmall;
    StreamedChildren: TStreamedChildren;
 begin
    while (not Properties.Done) do
@@ -643,6 +732,8 @@ begin
       if (Properties.HandleUniqueStringProperty(pnName, Name) and
           Properties.HandleUniqueStringProperty(pnPattern, Pattern) and
           Properties.HandleUniqueStringProperty(pnDescription, Description) and
+          Properties.specialize HandleUniqueEnumProperty<TThingMass>(pnMass, MassValue) and
+          Properties.specialize HandleUniqueEnumProperty<TThingSize>(pnSize, SizeValue) and
           HandleChildProperties(Properties, StreamedChildren)) then
          Properties.FailUnknownProperty();
    end;
@@ -656,6 +747,96 @@ begin
    Describer.AddProperty(pnName, ptString);
    Describer.AddProperty(pnPattern, ptPattern);
    Describer.AddProperty(pnDescription, ptString);
+   Describer.AddProperty(pnMass, ptMass);
+   Describer.AddProperty(pnSize, ptSize);
+   Describer.AddProperty(pnChild, ptChild);
+end;
+
+
+constructor TLocationRepresentative.Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String; AMass: TThingMass = tmLudicrous; ASize: TThingSize = tsLudicrous);
+begin
+   { needed for default values }
+   inherited;
+end;
+
+function TLocationRepresentative.GetRepresentative(): TAtom;
+begin
+   Assert(Assigned(FParent));
+   Result := FParent;
+end;
+
+function TLocationRepresentative.GetInside(var PositionOverride: TThingPosition): TThing;
+begin
+   if (FParent is TThing) then
+   begin
+      Result := FParent as TThing;
+   end
+   else
+   begin
+      Result := FParent.GetInside(PositionOverride);
+      if (not Assigned(Result)) then
+      begin
+         PositionOverride := tpOn;
+         Result := GetSurface();
+         Assert(Assigned(Result)); // XXX if it's nil, what should we do?
+      end;
+   end;      
+end;
+
+function TLocationRepresentative.GetSurface(): TThing;
+begin
+   if (FParent is TThing) then
+   begin
+      Result := FParent as TThing;
+   end
+   else
+   begin
+      Result := FParent.GetSurface();
+   end;      
+end;
+
+function TLocationRepresentative.CanMove(Perspective: TAvatar; var Message: TMessage): Boolean;
+begin
+   Assert(Message.IsValid);
+   Result := False;
+   Message := TMessage.Create(mkCannotMoveBecauseLocation, '_ _ _ _.',
+                                                           [Capitalise(GetDefiniteName(Perspective)),
+                                                            IsAre(IsPlural(Perspective)),
+                                                            ThingPositionToString(FPosition),
+                                                            FParent.GetDefiniteName(Perspective)]);
+end;
+
+class function TLocationRepresentative.CreateFromProperties(Properties: TTextStreamProperties): TLocationRepresentative;
+var
+   Name: UTF8String;
+   Pattern: UTF8String;
+   Description: UTF8String;
+   MassValue: TThingMass = tmLudicrous;
+   SizeValue: TThingSize = tsLudicrous;
+   StreamedChildren: TStreamedChildren;
+begin
+   while (not Properties.Done) do
+   begin
+      if (Properties.HandleUniqueStringProperty(pnName, Name) and
+          Properties.HandleUniqueStringProperty(pnPattern, Pattern) and
+          Properties.HandleUniqueStringProperty(pnDescription, Description) and
+          Properties.specialize HandleUniqueEnumProperty<TThingMass>(pnMass, MassValue) and
+          Properties.specialize HandleUniqueEnumProperty<TThingSize>(pnSize, SizeValue) and
+          HandleChildProperties(Properties, StreamedChildren)) then
+         Properties.FailUnknownProperty();
+   end;
+   Properties.EnsureSeen([pnName, pnPattern, pnDescription]);
+   Result := Create(Name, Pattern, Description);
+   StreamedChildren.Apply(Result);
+end;
+
+class procedure TLocationRepresentative.DescribeProperties(Describer: TPropertyDescriber);
+begin
+   Describer.AddProperty(pnName, ptString);
+   Describer.AddProperty(pnPattern, ptPattern);
+   Describer.AddProperty(pnDescription, ptString);
+   Describer.AddProperty(pnMass, ptMass);
+   Describer.AddProperty(pnSize, ptSize);
    Describer.AddProperty(pnChild, ptChild);
 end;
 
@@ -688,7 +869,7 @@ class function TScenery.CreateFromProperties(Properties: TTextStreamProperties):
 var
    Name: UTF8String;
    Pattern: UTF8String;
-   Description, UnderDescriptionValue, FindDescriptionValue, CannotMoveExcuseValue: UTF8String;
+   Description, UnderDescriptionValue, FindDescriptionValue, CannotMoveExcuseValue, CannotPlaceExcuseValue: UTF8String;
    MassValue: TThingMass = tmLudicrous;
    SizeValue: TThingSize = tsLudicrous;
    OpenedValue: Boolean = False;
@@ -702,6 +883,7 @@ begin
           Properties.HandleUniqueStringProperty(pnUnderDescription, UnderDescriptionValue) and
           Properties.HandleUniqueStringProperty(pnFindDescription, FindDescriptionValue) and
           Properties.HandleUniqueStringProperty(pnCannotMoveExcuse, CannotMoveExcuseValue) and
+          Properties.HandleUniqueStringProperty(pnCannotPlaceExcuse, CannotPlaceExcuseValue) and
           Properties.HandleUniqueBooleanProperty(pnOpened, OpenedValue) and
           Properties.specialize HandleUniqueEnumProperty<TThingMass>(pnMass, MassValue) and
           Properties.specialize HandleUniqueEnumProperty<TThingSize>(pnSize, SizeValue) and
@@ -716,6 +898,8 @@ begin
       Result.FindDescription := FindDescriptionValue;
    if (Properties.Seen(pnCannotMoveExcuse)) then
       Result.CannotMoveExcuse := CannotMoveExcuseValue;
+   if (Properties.Seen(pnCannotPlaceExcuse)) then
+      Result.CannotPlaceExcuse := CannotPlaceExcuseValue;
    if (Properties.Seen(pnOpened)) then
       Result.Opened := OpenedValue;
    StreamedChildren.Apply(Result);
@@ -729,6 +913,7 @@ begin
    Describer.AddProperty(pnUnderDescription, ptString);
    Describer.AddProperty(pnFindDescription, ptString);
    Describer.AddProperty(pnCannotMoveExcuse, ptString);
+   Describer.AddProperty(pnCannotPlaceExcuse, ptString);
    Describer.AddProperty(pnOpened, ptBoolean);
    Describer.AddProperty(pnMass, ptMass);
    Describer.AddProperty(pnSize, ptSize);
@@ -748,9 +933,10 @@ begin
       Message := TMessage.Create(mkCannotMoveBecauseCustom, FCannotMoveExcuse)
    else
    if (FPosition = tpPartOfImplicit) then
-      Message := TMessage.Create(mkCannotMoveBecauseLocation, '_ _ part of _.',
+      Message := TMessage.Create(mkCannotMoveBecauseLocation, '_ _ _ _.',
                                                               [Capitalise(GetDefiniteName(Perspective)),
                                                                IsAre(IsPlural(Perspective)),
+                                                               ThingPositionToString(FPosition),
                                                                FParent.GetDefiniteName(Perspective)])
    else
    if (FPosition in tpOpening) then
@@ -843,28 +1029,70 @@ begin
    Result := Capitalise(GetIndefiniteName(Perspective)) + ' ' + TernaryConditional('leads', 'lead', IsPlural(Perspective)) + ' ' + CardinalDirectionToString(Direction) + '.';
 end;
 
-function TLocationProxy.GetEntrance(Traveller: TThing; Direction: TCardinalDirection; Perspective: TAvatar; var PositionOverride: TThingPosition; var DisambiguationOpening: TThing; var Message: TMessage; NotificationList: TAtomList): TAtom;
+
+constructor TPath.Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String; Destination: TLocation; ASize: TThingSize);
 begin
-   Assert(Message.IsValid);
-   DisambiguationOpening := Self;       
-   Result := inherited;
+   inherited Create(Name, Pattern, Description, Destination, tmLudicrous, ASize);
 end;
 
-function TLocationProxy.GetInside(var PositionOverride: TThingPosition): TThing;
+class function TPath.CreateFromProperties(Properties: TTextStreamProperties): TPath;
+var
+   Name: UTF8String;
+   Pattern: UTF8String;
+   Description, UnderDescriptionValue, FindDescriptionValue, CannotMoveExcuseValue: UTF8String;
+   Destination: TLocation;
+   SizeValue: TThingSize;
+   OpenedValue: Boolean = False;
+   StreamedChildren: TStreamedChildren;
 begin
-   Assert(Assigned(FDestination));
-   Result := FDestination.GetInside(PositionOverride);
-   if (not Assigned(Result)) then
+   while (not Properties.Done) do
    begin
-      Result := FDestination.GetSurface();
-      Assert(Assigned(Result));
-      PositionOverride := tpOn;
+      if (Properties.HandleUniqueStringProperty(pnName, Name) and
+          Properties.HandleUniqueStringProperty(pnPattern, Pattern) and
+          Properties.HandleUniqueStringProperty(pnDescription, Description) and
+          TLocation.HandleUniqueLocationProperty(Properties, pnDestination, Destination) and {BOGUS Hint: Local variable "Destination" does not seem to be initialized}
+          Properties.HandleUniqueStringProperty(pnUnderDescription, UnderDescriptionValue) and
+          Properties.HandleUniqueStringProperty(pnFindDescription, FindDescriptionValue) and
+          Properties.HandleUniqueStringProperty(pnCannotMoveExcuse, CannotMoveExcuseValue) and
+          Properties.HandleUniqueBooleanProperty(pnOpened, OpenedValue) and
+          Properties.specialize HandleUniqueEnumProperty<TThingSize>(pnSize, SizeValue) and {BOGUS Hint: Local variable "SizeValue" does not seem to be initialized}
+          HandleChildProperties(Properties, StreamedChildren)) then
+         Properties.FailUnknownProperty();
    end;
+   Properties.EnsureSeen([pnName, pnPattern, pnDescription, pnSize, pnDestination]);
+   Result := Create(Name, Pattern, Description, Destination, SizeValue);
+   if (Properties.Seen(pnUnderDescription)) then
+      Result.UnderDescription := UnderDescriptionValue;
+   if (Properties.Seen(pnFindDescription)) then
+      Result.FindDescription := FindDescriptionValue;
+   if (Properties.Seen(pnCannotMoveExcuse)) then
+      Result.CannotMoveExcuse := CannotMoveExcuseValue;
+   if (Properties.Seen(pnOpened)) then
+      Result.Opened := OpenedValue;
+   StreamedChildren.Apply(Result);
 end;
 
-function TLocationProxy.IsOpen(): Boolean;
+class procedure TPath.DescribeProperties(Describer: TPropertyDescriber);
 begin
-   Result := True;
+   Describer.AddProperty(pnName, ptString);
+   Describer.AddProperty(pnPattern, ptPattern);
+   Describer.AddProperty(pnDescription, ptString);
+   Describer.AddProperty(pnDestination, ptLocation);
+   Describer.AddProperty(pnUnderDescription, ptString);
+   Describer.AddProperty(pnFindDescription, ptString);
+   Describer.AddProperty(pnCannotMoveExcuse, ptString);
+   Describer.AddProperty(pnOpened, ptBoolean);
+   Describer.AddProperty(pnSize, ptSize);
+   Describer.AddProperty(pnChild, ptChild);
+end;
+
+function TPath.GetTransportationDestination(Perspective: TAvatar): TTransportationInstruction;
+begin
+   Result.TravelType := ttByPosition;
+   Result.TargetThing := FDestination.GetSurface();
+   Assert(Assigned(Result.TargetThing), 'Destination has no surface.');
+   Result.Position := tpOn;
+   Result.RequiredAbilities := [naWalk];
 end;
 
 
@@ -907,20 +1135,50 @@ begin
    Describer.AddProperty(pnChild, ptChild);
 end;
 
-function TOpening.GetEntrance(Traveller: TThing; Direction: TCardinalDirection; Perspective: TAvatar; var PositionOverride: TThingPosition; var DisambiguationOpening: TThing; var Message: TMessage; NotificationList: TAtomList): TAtom;
+function TOpening.CanEnter(Traveller: TThing; Direction: TCardinalDirection; Perspective: TAvatar; var Message: TMessage): Boolean;
 begin
    Assert(Message.IsValid);
    Assert(Assigned(Traveller));
-   if (not CanInsideHold(Traveller.GetOutsideSizeManifest())) then
+   Result := CanInsideHold(Traveller.GetOutsideSizeManifest(), 1);
+   if (not Result) then
    begin
-      Result := nil;
       Message := TMessage.Create(mkTooBig, '_ _ too big to fit in _.',
                                            [Capitalise(Traveller.GetDefiniteName(Perspective)),
                                             IsAre(Traveller.IsPlural(Perspective)),
                                             GetDefiniteName(Perspective)]);
+   end;
+end;
+
+function TOpening.GetEntrance(Traveller: TThing; Direction: TCardinalDirection; Perspective: TAvatar; var PositionOverride: TThingPosition; var DisambiguationOpening: TThing; var Message: TMessage; NotificationList: TAtomList): TAtom;
+begin
+   Assert(Message.IsValid);
+   Assert(Assigned(Traveller));
+   if (CanEnter(Traveller, Direction, Perspective, Message)) then
+   begin
+      DisambiguationOpening := Self;
+      Result := inherited; // defers to GetInside() below; TLocation.GetInside() gets the FDestination surface
    end
    else
-      Result := inherited; // defers to GetInside(); TLocation.GetInside() gets the FDestination surface
+   begin
+      Result := nil;
+   end;
+end;
+
+function TOpening.GetInside(var PositionOverride: TThingPosition): TThing;
+begin
+   Assert(Assigned(FDestination));
+   Result := FDestination.GetInside(PositionOverride);
+   if (not Assigned(Result)) then
+   begin
+      Result := FDestination.GetSurface();
+      Assert(Assigned(Result), 'Destination has no surface.');
+      PositionOverride := tpOn;
+   end;
+end;
+
+function TOpening.IsOpen(): Boolean;
+begin
+   Result := True;
 end;
 
 function TOpening.GetLookUnder(Perspective: TAvatar): UTF8String;
@@ -961,7 +1219,7 @@ begin
    Result := Result + [tfCanHaveThingsPushedOn, tfCanHaveThingsPushedIn];
 end;
 
-function TOpening.CanInsideHold(const Manifest: TThingSizeManifest): Boolean;
+function TOpening.CanInsideHold(const Manifest: TThingSizeManifest; const ManifestCount: Integer): Boolean;
 begin
    Result := (GetInsideSizeManifest() + Manifest) < FSize;
 end;
@@ -1012,18 +1270,11 @@ begin
    Assert(Message.IsValid);
    Assert(Assigned(FParent));
    Result := False;
-   Message := TMessage.Create(mkCannotMoveBecauseLocation, '_ _ part of _.',
-                                                           [Capitalise(GetDefiniteName(Perspective)),
-                                                            IsAre(IsPlural(Perspective)),
-                                                            FParent.GetDefiniteName(Perspective)]);
-end;
-
-function TSurface.GetNavigationInstructions(Direction: TCardinalDirection; Child: TThing; Perspective: TAvatar; var Message: TMessage): TNavigationInstruction;
-begin
-   Assert(Message.IsValid);
-   // always defer to parent, so that "get out" doesn't try to get out of the TSurface and into the TLocation!
-   Assert(Assigned(FParent));
-   Result := FParent.GetNavigationInstructions(Direction, Self, Perspective, Message);
+   Message := TMessage.Create(mkCannotMoveBecauseLocation, '_ _ _ _.',
+                              [Capitalise(GetDefiniteName(Perspective)),
+                               IsAre(IsPlural(Perspective)),
+                               ThingPositionToString(Position),
+                               FParent.GetDefiniteName(Perspective)]);
 end;
 
 function TSurface.GetRepresentative(): TAtom;
@@ -1032,6 +1283,16 @@ begin
    Result := FParent;
 end;
 
+
+constructor TEarthGround.Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String; AMass: TThingMass = tmLudicrous; ASize: TThingSize = tsLudicrous; AHole: THole = nil);
+begin
+   inherited Create(Name, Pattern, Description, AMass, ASize);
+   if (Assigned(AHole)) then
+   begin
+      FHole := AHole;
+      Add(AHole, tpSurfaceOpening);
+   end;
+end;
 
 constructor TEarthGround.Read(Stream: TReadStream);
 begin
@@ -1043,6 +1304,43 @@ procedure TEarthGround.Write(Stream: TWriteStream);
 begin
    inherited;
    Stream.WriteReference(FHole);
+end;
+
+class function TEarthGround.CreateFromProperties(Properties: TTextStreamProperties): TEarthGround;
+var
+   Name: UTF8String;
+   Pattern: UTF8String;
+   Description: UTF8String;
+   Hole: TThing = nil;
+   MassValue: TThingMass = tmLudicrous;
+   SizeValue: TThingSize = tsLudicrous;
+   StreamedChildren: TStreamedChildren;
+begin
+   while (not Properties.Done) do
+   begin
+      if (Properties.HandleUniqueStringProperty(pnName, Name) and
+          Properties.HandleUniqueStringProperty(pnPattern, Pattern) and
+          Properties.HandleUniqueStringProperty(pnDescription, Description) and
+          TThing.HandleUniqueThingProperty(Properties, pnHole, Hole, THole) and
+          Properties.specialize HandleUniqueEnumProperty<TThingMass>(pnMass, MassValue) and
+          Properties.specialize HandleUniqueEnumProperty<TThingSize>(pnSize, SizeValue) and
+          HandleChildProperties(Properties, StreamedChildren)) then
+         Properties.FailUnknownProperty();
+   end;
+   Properties.EnsureSeen([pnName, pnPattern, pnDescription]);
+   Result := Create(Name, Pattern, Description, MassValue, SizeValue, Hole as THole);
+   StreamedChildren.Apply(Result);
+end;
+
+class procedure TEarthGround.DescribeProperties(Describer: TPropertyDescriber);
+begin
+   Describer.AddProperty(pnName, ptString);
+   Describer.AddProperty(pnPattern, ptPattern);
+   Describer.AddProperty(pnDescription, ptString);
+   Describer.AddProperty(pnHole, ptHole);
+   Describer.AddProperty(pnMass, ptMass);
+   Describer.AddProperty(pnSize, ptSize);
+   Describer.AddProperty(pnChild, ptChild);
 end;
 
 {$IFOPT C+}
@@ -1162,10 +1460,10 @@ begin
       Result := Self;
 end;
 
-function TEarthGround.CanInsideHold(const Manifest: TThingSizeManifest): Boolean;
+function TEarthGround.CanInsideHold(const Manifest: TThingSizeManifest; const ManifestCount: Integer): Boolean;
 begin
    if (Assigned(FHole)) then
-      Result := FHole.CanInsideHold(Manifest)
+      Result := FHole.CanInsideHold(Manifest, ManifestCount)
    else
       Result := False;
 end;
@@ -1183,25 +1481,134 @@ begin
 end;
 
 
+constructor TContainer.Create(Name: UTF8String; Pattern: UTF8String; Description: UTF8String; AOpen: Boolean = True; AOpenable: Boolean = False; AMass: TThingMass = tmLudicrous; ASize: TThingSize = tsLudicrous);
+begin
+   inherited Create(Name, Pattern, Description, AMass, ASize);
+   FOpen := AOpen;
+   FOpenable := AOpenable;
+end;
+
+constructor TContainer.Read(Stream: TReadStream);
+begin
+   inherited;
+   FOpen := Stream.ReadBoolean();
+   FOpenable := Stream.ReadBoolean();
+end;
+
+procedure TContainer.Write(Stream: TWriteStream);
+begin
+   inherited;
+   Stream.WriteBoolean(FOpen);
+   Stream.WriteBoolean(FOpenable);
+end;
+
+class function TContainer.CreateFromProperties(Properties: TTextStreamProperties): TContainer;
+var
+   Name: UTF8String;
+   Pattern: UTF8String;
+   Description: UTF8String;
+   Opened: Boolean = True;
+   Openable: Boolean = False;
+   MassValue: TThingMass = tmLudicrous;
+   SizeValue: TThingSize = tsLudicrous;
+   StreamedChildren: TStreamedChildren;
+begin
+   while (not Properties.Done) do
+   begin
+      if (Properties.HandleUniqueStringProperty(pnName, Name) and
+          Properties.HandleUniqueStringProperty(pnPattern, Pattern) and
+          Properties.HandleUniqueStringProperty(pnDescription, Description) and
+          Properties.HandleUniqueBooleanProperty(pnOpened, Opened) and
+          Properties.HandleUniqueBooleanProperty(pnOpenable, Openable) and
+          Properties.specialize HandleUniqueEnumProperty<TThingMass>(pnMass, MassValue) and
+          Properties.specialize HandleUniqueEnumProperty<TThingSize>(pnSize, SizeValue) and
+          HandleChildProperties(Properties, StreamedChildren)) then
+         Properties.FailUnknownProperty();
+   end;
+   Properties.EnsureSeen([pnName, pnPattern, pnDescription]);
+   Result := Create(Name, Pattern, Description, Opened, Openable, MassValue, SizeValue);
+   StreamedChildren.Apply(Result);
+end;
+
+class procedure TContainer.DescribeProperties(Describer: TPropertyDescriber);
+begin
+   Describer.AddProperty(pnName, ptString);
+   Describer.AddProperty(pnPattern, ptPattern);
+   Describer.AddProperty(pnDescription, ptString);
+   Describer.AddProperty(pnOpened, ptBoolean);
+   Describer.AddProperty(pnOpenable, ptBoolean);
+   Describer.AddProperty(pnMass, ptMass);
+   Describer.AddProperty(pnSize, ptSize);
+   Describer.AddProperty(pnChild, ptChild);
+end;
+
 function TContainer.GetInside(var PositionOverride: TThingPosition): TThing;
 begin
    Result := Self;
 end;
 
-function TContainer.CanInsideHold(const Manifest: TThingSizeManifest): Boolean;
+function TContainer.CanInsideHold(const Manifest: TThingSizeManifest; const ManifestCount: Integer): Boolean;
 begin
    Result := (GetInsideSizeManifest() + Manifest) < FSize;
 end;
 
 function TContainer.IsOpen(): Boolean;
 begin
-   Result := True;
+   Result := FOpen;
 end;
 
 function TContainer.GetFeatures(): TThingFeatures;
 begin
    Result := inherited;
-   Result := Result + [tfCanHaveThingsPushedIn];
+   if (FOpenable and FOpen) then
+      Result := Result + [tfClosable];
+   if (FOpenable and not FOpen) then
+      Result := Result + [tfOpenable];
+   // Result := Result + [tfCanHaveThingsPushedIn]; // maybe have a flag for this?
+end;
+
+function TContainer.Open(Perspective: TAvatar; var Message: TMessage): Boolean;
+begin
+   if (FOpen) then
+   begin
+      Message := TMessage.Create(mkNoOp, '_ _ already open.', [Capitalise(GetDefiniteName(Perspective)), IsAre(IsPlural(Perspective))]);
+      Result := False;
+   end
+   else
+   begin
+      if (FOpenable) then
+      begin
+         FOpen := True;
+         Result := True;
+      end
+      else
+      begin
+         Message := TMessage.Create(mkNoOpening, '_ _ not openable.', [Capitalise(GetDefiniteName(Perspective)), IsAre(IsPlural(Perspective))]);
+         Result := False;
+      end;
+   end;
+end;
+
+function TContainer.Close(Perspective: TAvatar; var Message: TMessage): Boolean;
+begin
+   if (not FOpen) then
+   begin
+      Message := TMessage.Create(mkNoOp, '_ _ already closed.', [Capitalise(GetDefiniteName(Perspective)), IsAre(IsPlural(Perspective))]);
+      Result := False;
+   end
+   else
+   begin
+      if (FOpenable) then
+      begin
+         FOpen := False;
+         Result := True;
+      end
+      else
+      begin
+         Message := TMessage.Create(mkNoOpening, '_ _ not closable.', [Capitalise(GetDefiniteName(Perspective)), IsAre(IsPlural(Perspective))]);
+         Result := False;
+      end;
+   end;
 end;
 
 
@@ -1309,7 +1716,7 @@ begin
    Result := Self;
 end;
 
-function TBag.CanInsideHold(const Manifest: TThingSizeManifest): Boolean;
+function TBag.CanInsideHold(const Manifest: TThingSizeManifest; const ManifestCount: Integer): Boolean;
 begin
    Result := (GetInsideSizeManifest() + Manifest) < FMaxSize;
 end;
@@ -1383,6 +1790,11 @@ end;
 function THole.GetTitle(Perspective: TAvatar): UTF8String;
 begin
    Result := 'hole in ' + FParent.GetDefiniteName(Perspective);
+end;
+
+function THole.GetHorizonDescription(Perspective: TAvatar): UTF8String;
+begin
+   Result := ''; // we're in a hole, let's not talk about what's outside the hole
 end;
 
 function THole.GetPresenceStatement(Perspective: TAvatar; Mode: TGetPresenceStatementMode): UTF8String;
@@ -1498,7 +1910,7 @@ begin
    Result := Self;
 end;
 
-function THole.CanInsideHold(const Manifest: TThingSizeManifest): Boolean;
+function THole.CanInsideHold(const Manifest: TThingSizeManifest; const ManifestCount: Integer): Boolean;
 begin
    Result := (GetInsideSizeManifest() + Manifest) < FSize;
 end;
@@ -1507,7 +1919,7 @@ function THole.CanMove(Perspective: TAvatar; var Message: TMessage): Boolean;
 begin
    Assert(Message.IsValid);
    Result := False;
-   Message := TMessage.Create(mkBogus, '_ cannot move _. That does not make sense. Maybe try filling this hole in and digging a new one in the new location.', 
+   Message := TMessage.Create(mkBogus, '_ cannot move _. That does not make sense. Maybe try filling this hole in and digging a new one in the new location.',
                                        [Capitalise(Perspective.GetDefiniteName(Perspective)),
                                         GetIndefiniteName(Perspective)]);
 end;
@@ -1572,6 +1984,51 @@ begin
 end;
 
 procedure THole.HandleAdd(Thing: TThing; Blame: TAvatar);
+
+   procedure AvoidBuryingAlive(Parent: TThing; Target: TAtom);
+   var
+      Avatars: TThingList;
+
+      procedure HandleChild(Child: TThing);
+      begin
+         if (Child is TAvatar) then
+         begin
+            if (not Assigned(Avatars)) then
+               Avatars := TThingList.Create();
+            Avatars.AppendItem(Child);
+         end
+         else
+         begin
+            Child.WalkChildren(@HandleChild);
+         end;
+      end;
+
+   var
+      Child: TThing;
+      Avatar: TAvatar;
+   begin
+      Avatars := nil;
+      Parent.WalkChildren(@HandleChild);
+      if (Assigned(Avatars)) then
+      begin
+         Assert(Avatars.Length > 0);
+         try
+            for Child in Avatars do
+            begin
+               Avatar := Child as TAvatar;
+               Avatar.AvatarMessage(TMessage.Create(mkAvoidingBurialAlive, '_ barely _ being buried alive by _.',
+                                                    [Capitalise(Avatar.GetDefiniteName(Avatar)),
+                                                     TernaryConditional('avoids', 'avoid', Avatar.IsPlural(Avatar)),
+                                                     Blame.GetDefiniteName(Avatar)]));
+               DoBroadcast([FParent], Avatar, [C(M(@Avatar.GetDefiniteName)), SP, M('barely'), SP, MP(Avatar, M('avoids'), M('avoid')), SP, M('being buried alive by'), SP, M(@Blame.GetDefiniteName), M('.')]);
+               ForceTravel(Avatar, Target, cdOut, Avatar);
+            end;
+         finally
+            Avatars.Free();
+         end;
+      end;
+   end;
+
 var
    Child: TThing;
    E: TThingList.TEnumerator;
@@ -1597,10 +2054,8 @@ begin
                PileSize := PileSize + Child.GetOutsideSizeManifest();
          if (PileSize >= FSize) then
          begin
-            // { Check all descendants for TAvatars, to avoid burying them alive }
-            // for Child in Descendants do
-            //    if Child is TAvatar do
-            //       ForceTravel(Child, Avatar.FParent, FParent.GetRepresentative(), cdOut, [], Child);
+            { Check all descendants for TAvatars, to avoid burying them alive }
+            AvoidBuryingAlive(Self, FParent.GetRepresentative());
             { Fill hole and bury treasure }
             DoBroadcast([FParent], nil, [C(M(@Blame.GetDefiniteName)), SP, MP(Blame, M('fills'), M('fill')), SP, M(@GetDefiniteName), M(' with '), M(@Thing.GetDefiniteName), M('.')]);
             OldParent := FParent;
@@ -1654,7 +2109,7 @@ begin
    begin
       Thing.Position := tpIn;
       if (GetInsideSizeManifest() < FSize) then
-         DoBroadcast([Self], nil, [C(M(@Thing.GetDefiniteName)), SP, MP(Self, M('falls'), M('fall')), M(' into '), M(@GetDefiniteName), M('.')]);
+         DoBroadcast([Self], nil, [C(M(@Thing.GetDefiniteName)), SP, MP(Thing, M('falls'), M('fall')), M(' into '), M(@GetDefiniteName), M('.')]);
       { else well the hole is full and this is just piling on top of the hole,
         so though we pretend like it's in the hole, it's not like it fell in }
    end; { else it covers the hole }
@@ -1680,13 +2135,13 @@ begin
    Assert(Message.IsValid);
    Result.TravelType := ttNone;
    Assert(FParent is TEarthGround);
-   Assert(Child.Position = tpIn); // if this fires, then we need to make sure we handle navigation while on a filled pile by deferring to parent
+   Assert(Child.Position = tpIn); // we try to AvoidBuryingAlive so that this should never be possible
    case Direction of
      cdUp, cdOut:
         begin
            Result.TravelType := ttByDirection;
            Result.RequiredAbilities := [naJump];
-           Result.Target := FParent.GetRepresentative();
+           Result.DirectionTarget := FParent.GetRepresentative();
            Result.Direction := cdUp;
         end;
     else
@@ -1768,7 +2223,7 @@ var
       PluralIngredients[High(PluralIngredients)] := Plural;
       Assert(Length(SingularIngredients) = Length(PluralIngredients));
    end;
-   
+
    function HandleIngredientsProperty(): Boolean;
    var
       Stream: TTextStream;
@@ -1780,7 +2235,7 @@ var
          Properties.EnsureNotSeen(pnIngredients);
          Stream := Properties.Accept();
          while (True) do
-         begin      
+         begin
             Singular := Stream.GetString();
             Stream.ExpectPunctuation('/');
             Plural := Stream.GetString();
@@ -1795,7 +2250,7 @@ var
       else
          Result := True;
    end;
-      
+
 begin
    while (not Properties.Done) do
    begin
@@ -1865,7 +2320,7 @@ begin
    Result := Self;
 end;
 
-function TPile.CanInsideHold(const Manifest: TThingSizeManifest): Boolean;
+function TPile.CanInsideHold(const Manifest: TThingSizeManifest; const ManifestCount: Integer): Boolean;
 begin
    Result := (GetInsideSizeManifest() + Manifest) < FSize;
 end;
@@ -1968,6 +2423,13 @@ end;
 function TSign.GetDescriptionWriting(Perspective: TAvatar): UTF8String;
 begin
    Result := 'On ' + GetDefiniteName(Perspective) + ' is written "' + FWriting + '".';
+end;
+
+
+constructor TStructure.Create(Name: UTF8String; Pattern: UTF8String; Description, ACannotPlaceExcuse: UTF8String);
+begin
+   inherited Create(Name, Pattern, Description);
+   FCannotPlaceExcuse := ACannotPlaceExcuse;
 end;
 
 
