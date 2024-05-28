@@ -890,7 +890,7 @@ begin
    Assert(ParentSearch is TThing);
    repeat
       ParentSearch := (ParentSearch as TThing).Parent;
-      Assert(ParentSearch <> Thing, 'Cycle in world including ' + Thing.GetLongDefiniteName(nil));
+      Assert(ParentSearch <> Thing, 'Cycle in world involving ' + Thing.GetLongDefiniteName(nil));
    until (not (ParentSearch is TThing));
    {$ENDIF}
 end;
@@ -1607,9 +1607,9 @@ begin
    if (Context is TThing) then
       case FPosition of
          tpAmbiguousPartOfImplicit: Result := Result + ' of ' + Context.GetDefiniteName(Perspective);
-   else
-      ;
-   end;
+      else
+         ;
+      end;
 end;
 
 function TThing.GetLongDefiniteName(Perspective: TAvatar): UTF8String;
