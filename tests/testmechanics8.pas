@@ -33,7 +33,7 @@ procedure TestMechanics8();
       TunnelEnd.Add(TStructure.Create('west wall', '(white (west western)@)* wall/walls', 'The western wall of the tunnel end room is white.', 'There does not seem to be any way to attach things to the wall.'), tpPartOfImplicit);
 
       Bedroom := TGroundLocation.Create('Bedroom', 'the bedroom', 'a bedroom', 'The bedroom is a large room. On the ceiling are some stars.', CreateStoneSurface());
-      Bed := TDescribedPhysicalThing.Create('bed', 'bed/beds', 'The bed is medium-sized bed.', tmPonderous, tsMassive);
+      Bed := TDescribedPhysicalThing.Create('bed', 'bed/beds', 'The bed is a medium-sized bed.', tmPonderous, tsMassive);
       Pillow := TDescribedPhysicalThing.Create('pillow', '((car? pillow/pillows) car/cars)@', 'The pillow has drawings of cars on it.', tmLight, tsSmall);
       Stars := TFeature.Create('stars', 'pretty? ceiling? star/stars', 'The ceiling has stars on it.');
       Ceiling := TStructure.Create('ceiling', 'pretty? starry? ceiling/ceilings', 'The ceiling has some pretty stars on it.', 'Putting things on a ceiling seems like an exercise in futility.');
